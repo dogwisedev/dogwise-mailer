@@ -206,6 +206,22 @@
   .pill.opened { background: #FBF3E4; color: var(--brass); }
   .pill.replied { background: #E7F5EC; color: var(--green); }
   .pill.error { background: #FDECEA; color: var(--red); }
+
+  #editorView { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 26px; align-items: start; }
+  .camp-side { position: sticky; top: 20px; }
+  .camp-side .cs-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; margin-bottom: 14px; }
+  .camp-side h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--slate); margin-bottom: 12px; }
+  .cs-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; }
+  .cs-stats .n { font-family: 'Sora'; font-size: 20px; font-weight: 700; color: var(--navy); }
+  .cs-stats .n.amber { color: var(--brass); } .cs-stats .n.green { color: var(--green); }
+  .cs-stats .l { font-size: 9.5px; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.4px; margin-top: 2px; }
+  .cs-feed { max-height: 380px; overflow-y: auto; }
+  .cs-evt { display: flex; gap: 8px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid #F1F4F8; font-size: 11.5px; }
+  .cs-evt:last-child { border-bottom: none; }
+  .cs-evt .who { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+  .cs-evt .when { color: #9CA3AF; font-size: 10.5px; white-space: nowrap; }
+  .cs-empty { color: #9CA3AF; font-size: 12px; text-align: center; padding: 14px 0; }
+  @media (max-width: 1150px) { #editorView { grid-template-columns: 1fr; } .camp-side { position: static; } }
 </style>
 </head>
 <body>
@@ -260,6 +276,7 @@
     </div>
 
     <div id="editorView">
+    <div class="ed-main">
     <div class="meta-row">
       <div class="field">
         <label>Campaign name</label>
@@ -276,6 +293,18 @@
     <div class="howto">
       <b>How leads get these emails:</b> your HubSpot workflow (or the enroll button in the extension) puts a contact into a campaign. From then on this app sends each email at the right time, <b>from the lead's deal owner's Gmail</b>, with <code>{{firstname}}</code> filled in automatically. Every send appears on the contact's HubSpot timeline. Contacts who opt out or leave the campaign stop receiving emails immediately.
     </div>
+    </div>
+
+    <aside class="camp-side" id="campSide">
+      <div class="cs-card">
+        <h3>This campaign — all time</h3>
+        <div class="cs-stats" id="csStats"><div><div class="n">–</div><div class="l">Sent</div></div><div><div class="n amber">–</div><div class="l">Opened</div></div><div><div class="n green">–</div><div class="l">Replied</div></div></div>
+      </div>
+      <div class="cs-card">
+        <h3>Recent activity</h3>
+        <div class="cs-feed" id="csFeed"><div class="cs-empty">No activity yet for this campaign</div></div>
+      </div>
+    </aside>
     </div>
   </main>
 </div>
@@ -387,6 +416,7 @@ function selectCampaign(key) {
   $('deleteBtn').style.display = key === 'welcome' ? 'none' : 'inline-block';
   renderList();
   renderSteps();
+  if (actCache) renderCampSide(key); fetchActivity().then(() => renderCampSide(key));
 }
 
 function renderSteps() {
@@ -539,7 +569,6 @@ $('testSendBtn').onclick = sendTest;
 document.querySelectorAll('.modal-bg').forEach(m => m.addEventListener('click', e => { if (e.target === m) m.style.display = 'none'; }));
 
 
-let activityTimer = null;
 
 function showActivity() {
   document.getElementById('editorView').style.display = 'none';
@@ -552,12 +581,9 @@ function showActivity() {
   activeKey = null;
   renderList();
   loadActivity();
-  clearInterval(activityTimer);
-  activityTimer = setInterval(loadActivity, 30000);
 }
 
 function showEditor(key) {
-  clearInterval(activityTimer);
   document.getElementById('activityView').style.display = 'none';
   document.getElementById('editorView').style.display = 'block';
   document.getElementById('campLabel').parentElement.parentElement.style.display = 'flex';
@@ -566,10 +592,33 @@ function showEditor(key) {
   selectCampaign(key);
 }
 
-async function loadActivity() {
+let actCache = null;
+async function fetchActivity() {
   const res = await api('/api/activity');
-  if (!res.ok) return;
-  const { events, stats, allTime } = await res.json();
+  if (res.ok) actCache = await res.json();
+  return actCache;
+}
+
+function renderCampSide(key) {
+  if (!actCache || !key) return;
+  const s = (actCache.allTime?.perCampaign || {})[key] || {};
+  document.getElementById('csStats').innerHTML =
+    `<div><div class="n">${s.sent || 0}</div><div class="l">Sent</div></div>
+     <div><div class="n amber">${s.opened || 0}</div><div class="l">Opened</div></div>
+     <div><div class="n green">${s.replied || 0}</div><div class="l">Replied</div></div>`;
+  const evts = (actCache.events || []).filter(e => e.campaign === key).slice(0, 30);
+  document.getElementById('csFeed').innerHTML = evts.length
+    ? evts.map(e => {
+        const d = new Date(e.t);
+        return `<div class="cs-evt"><span class="pill ${e.type}">${e.type}</span><span class="who">${esc(e.contact || '')}</span><span class="when">${d.toLocaleDateString(undefined,{month:'short',day:'numeric'})} ${d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'})}</span></div>`;
+      }).join('')
+    : '<div class="cs-empty">No activity yet for this campaign</div>';
+}
+
+async function loadActivity() {
+  const data = await fetchActivity();
+  if (!data) return;
+  const { events, stats, allTime } = data;
   const at = (allTime && allTime.total) || {};
 
   document.getElementById('statGrid').innerHTML = `
@@ -604,6 +653,12 @@ async function loadActivity() {
 }
 
 document.getElementById('activityBtn').onclick = showActivity;
+
+setInterval(async () => {
+  await fetchActivity();
+  if (document.getElementById('activityView').style.display === 'block') loadActivity();
+  else if (activeKey) renderCampSide(activeKey);
+}, 30000);
 
 if (pw) login();
 </script>
