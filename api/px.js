@@ -1,7 +1,7 @@
 // api/px.js — 1×1 transparent gif for open tracking.
 // Embedded in each HTML email as <img src="/api/px?e=<sendId>">. No PII in the URL —
 // the sendId maps to send metadata stored in Redis at send time.
-import { lookupSend, markOpenedOnce, logEvent } from '../lib/activity.js';
+import { lookupSend, markOpenedOnce, logEvent, bumpStat } from '../lib/activity.js';
 
 const GIF = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
 
@@ -15,6 +15,7 @@ export default async function handler(req, res) {
       if (first) {
         const meta = await lookupSend(sendId);
         await logEvent({ type: 'opened', ...(meta || { detail: `unknown send ${sendId}` }) });
+        await bumpStat(meta?.campaign, 'opened');
       }
     } catch { /* never fail the pixel */ }
   }

@@ -247,6 +247,7 @@
       </div>
     </div>
 
+    <div id="editorView">
     <div class="meta-row">
       <div class="field">
         <label>Campaign name</label>
@@ -260,6 +261,7 @@
 
     <div id="activityView" style="display:none">
       <div class="stat-grid" id="statGrid"></div>
+      <div class="act-table-wrap" id="campTotals" style="margin-bottom:14px;max-height:none"></div>
       <div class="act-table-wrap">
         <table class="act-table">
           <thead><tr><th>Time</th><th>Event</th><th>Contact</th><th>Campaign</th><th>Step</th><th>From</th></tr></thead>
@@ -269,7 +271,6 @@
       <div class="hint" style="margin-top:10px;font-size:11px;color:#9CA3AF">Opens are approximate (some mail apps auto-load or block images). Replies are exact — a reply also stops that contact's sequence automatically. Refreshes every 30s.</div>
     </div>
 
-    <div id="editorView">
     <div class="howto">
       <b>How leads get these emails:</b> your HubSpot workflow (or the enroll button in the extension) puts a contact into a campaign. From then on this app sends each email at the right time, <b>from the lead's deal owner's Gmail</b>, with <code>{{firstname}}</code> filled in automatically. Every send appears on the contact's HubSpot timeline. Contacts who opt out or leave the campaign stop receiving emails immediately.
     </div>
@@ -566,13 +567,25 @@ function showEditor(key) {
 async function loadActivity() {
   const res = await api('/api/activity');
   if (!res.ok) return;
-  const { events, stats } = await res.json();
+  const { events, stats, allTime } = await res.json();
+  const at = (allTime && allTime.total) || {};
 
   document.getElementById('statGrid').innerHTML = `
-    <div class="stat-card"><div class="big">${stats.today.sent}</div><div class="lbl">Sent today</div><div class="wk">${stats.week.sent} this week</div></div>
-    <div class="stat-card"><div class="big amber">${stats.today.opened}</div><div class="lbl">Opened today</div><div class="wk">${stats.week.opened} this week</div></div>
-    <div class="stat-card"><div class="big green">${stats.today.replied}</div><div class="lbl">Replied today</div><div class="wk">${stats.week.replied} this week</div></div>
+    <div class="stat-card"><div class="big">${stats.today.sent}</div><div class="lbl">Sent today</div><div class="wk">${stats.week.sent} this week · ${at.sent || 0} all time</div></div>
+    <div class="stat-card"><div class="big amber">${stats.today.opened}</div><div class="lbl">Opened today</div><div class="wk">${stats.week.opened} this week · ${at.opened || 0} all time</div></div>
+    <div class="stat-card"><div class="big green">${stats.today.replied}</div><div class="lbl">Replied today</div><div class="wk">${stats.week.replied} this week · ${at.replied || 0} all time</div></div>
     <div class="stat-card"><div class="big" style="color:${stats.today.errors ? '#C0392B' : '#9CA3AF'}">${stats.today.errors}</div><div class="lbl">Errors today</div><div class="wk">${stats.week.errors} this week</div></div>`;
+
+  // Per-campaign lifetime totals
+  const pc = (allTime && allTime.perCampaign) || {};
+  const rows = Object.entries(pc).map(([name, s]) => {
+    const openPct = s.sent ? Math.round((s.opened || 0) / s.sent * 100) : 0;
+    const replyPct = s.sent ? Math.round((s.replied || 0) / s.sent * 100) : 0;
+    return `<tr><td style="font-weight:600">${esc(name)}</td><td>${s.sent || 0}</td><td>${s.opened || 0} <span style="color:#9CA3AF">(${openPct}%)</span></td><td>${s.replied || 0} <span style="color:#9CA3AF">(${replyPct}%)</span></td></tr>`;
+  }).join('');
+  document.getElementById('campTotals').innerHTML = rows
+    ? `<table class="act-table"><thead><tr><th>Campaign — all time</th><th>Sent</th><th>Opened</th><th>Replied</th></tr></thead><tbody>${rows}</tbody></table>`
+    : '';
 
   document.getElementById('actRows').innerHTML = events.map(e => {
     const d = new Date(e.t);
