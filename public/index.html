@@ -351,6 +351,7 @@
 const TOKENS = [
   ['{{firstname}}', "Lead's first name"],
   ['{{lastname}}', "Lead's last name"],
+  ['{{email}}', "Lead's email — for pre-filled form links"],
   ['{{sender_firstname}}', "Deal owner's first name"],
   ['{{sender_lastname}}', "Deal owner's last name"]
 ];
@@ -536,7 +537,7 @@ async function sendTest() {
   if (!as || !to) return toast('Fill in both addresses', 'err');
   localStorage.setItem('dw_test_as', as); localStorage.setItem('dw_test_to', to);
   const step = campaigns[activeKey].steps[0];
-  const fill = s => s.replace(/\{\{\s*firstname\s*\}\}/gi, 'Alex').replace(/\{\{\s*lastname\s*\}\}/gi, 'Sample')
+  const fill = s => s.replace(/\{\{\s*firstname\s*\}\}/gi, 'Alex').replace(/\{\{\s*lastname\s*\}\}/gi, 'Sample').replace(/\{\{\s*email\s*\}\}/gi, encodeURIComponent($('testTo').value.trim()))
     .replace(/\{\{\s*sender_firstname\s*\}\}/gi, 'Anita').replace(/\{\{\s*sender_lastname\s*\}\}/gi, 'Oliveira');
   $('testSendBtn').disabled = true;
   const res = await fetch('/api/test-send?secret=' + encodeURIComponent(pw), {
