@@ -2,6 +2,7 @@
 // Usage (after deploy):
 //   GET /api/test-send?as=you@dogwiseacademy.com&to=you@dogwiseacademy.com&secret=<CRON_SECRET>
 import { sendAsOwner } from '../lib/gmail.js';
+import { renderHtml, toPlainText } from '../lib/util.js';
 
 export default async function handler(req, res) {
   const ok = (process.env.CRON_SECRET && req.query.secret === process.env.CRON_SECRET)
@@ -23,7 +24,8 @@ export default async function handler(req, res) {
       senderName: custom.senderName || 'Dogwise Test',
       to,
       subject: custom.subject || 'Dogwise mailer — delegation test ✅',
-      body: custom.body || `This test email was sent as ${as} via the dogwise-mailer service account.\n\nIf you're reading this, domain-wide delegation is working.`
+      body: custom.body ? toPlainText(custom.body) : `This test email was sent as ${as} via the dogwise-mailer service account.\n\nIf you're reading this, domain-wide delegation is working.`,
+      html: custom.body ? renderHtml(custom.body) : undefined
     });
     return res.status(200).json({ ok: true, gmailMessageId: id, sentAs: as, to });
   } catch (err) {

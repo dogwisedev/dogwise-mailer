@@ -2,7 +2,7 @@
 import { getCampaigns } from '../lib/store.js';
 import { getDueContacts, getDealOwnerId, buildOwnerMap, updateContact, logEmailToTimeline } from '../lib/hubspot.js';
 import { sendAsOwner } from '../lib/gmail.js';
-import { personalize, inSendWindow, daysFromNow } from '../lib/util.js';
+import { personalize, inSendWindow, daysFromNow, renderHtml, toPlainText } from '../lib/util.js';
 
 const MAX_PER_RUN = parseInt(process.env.MAX_PER_RUN || '40', 10);
 const MAX_PER_SENDER_PER_RUN = parseInt(process.env.MAX_PER_SENDER_PER_RUN || '15', 10);
@@ -65,14 +65,17 @@ export default async function handler(req, res) {
           sender_lastname: owner.lastName
         };
         const subject = personalize(step.subject, vars);
-        const body = personalize(step.body, vars);
+        const rawBody = personalize(step.body, vars);
+        const body = toPlainText(rawBody);
+        const html = renderHtml(rawBody);
 
         await sendAsOwner({
           senderEmail: owner.email,
           senderName: [owner.firstName, owner.lastName].filter(Boolean).join(' '),
           to: email,
           subject,
-          body
+          body,
+          html
         });
         senderCounts[owner.email]++;
 

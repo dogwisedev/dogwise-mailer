@@ -378,7 +378,10 @@ function renderSteps() {
       <div class="field" style="margin-bottom:4px">
         <label>Email body</label>
         <textarea data-i="${i}" data-f="body">${esc(step.body)}</textarea>
-        <div class="tokens">${TOKENS.map(([t, d]) => `<span class="token" title="${d}" onclick="insertToken('${t}')">${t}</span>`).join('')}</div>
+        <div class="tokens">${TOKENS.map(([t, d]) => `<span class="token" title="${d}" onclick="insertToken('${t}')">${t}</span>`).join('')}
+          <span class="token" title="Adds a styled button" onclick="insertToken('[[button:Book a call|https://your-link.com]]')">+ Button</span>
+          <span class="token" title="Shows a hosted image — paste the image URL" onclick="insertToken('![photo](https://your-image-url.jpg)')">+ Image</span>
+          <span class="token" title="Turns text into a link" onclick="insertToken('[link text](https://your-link.com)')">+ Link</span></div>
       </div>`;
     leash.appendChild(card);
 
