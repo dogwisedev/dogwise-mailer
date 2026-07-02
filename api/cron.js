@@ -1,6 +1,6 @@
 // api/cron.js — the sweep. Runs every 30 min via vercel.json cron.
 import { getCampaigns } from '../lib/store.js';
-import { getDueContacts, buildOwnerMap, getContactLive, getWaitingContacts, getDealOwnerId, updateContact } from '../lib/hubspot.js';
+import { getDueContacts, buildOwnerMap, getContactLive, getWaitingContacts, getCompletedContacts, getDealOwnerId, updateContact } from '../lib/hubspot.js';
 import { processContact } from '../lib/process.js';
 import { hasMailFrom } from '../lib/gmail.js';
 import { logEvent, bumpStat, getLastSend, shouldReplyCheck } from '../lib/activity.js';
@@ -40,29 +40,39 @@ export default async function handler(req, res) {
       }
     }
 
-    // ── Reply sweep: contacts waiting for a future step — did they reply in the meantime?
+    // ── Reply sweep:
+    //   waiting contacts (future step pending) → reply cancels the sequence
+    //   completed contacts (within 14 days of last send) → reply is logged for stats only
     summary.replied = 0;
+    const REPLY_WINDOW_MS = 14 * 86400000;
+
+    async function checkReply(rec, { unenroll }) {
+      if (!(await shouldReplyCheck(rec.id, 4))) return; // each contact checked at most every 4h
+      const lastSend = await getLastSend(rec.id);
+      if (!lastSend) return;                                    // pre-tracking sends: no window, skip
+      if (!unenroll && Date.now() - lastSend > REPLY_WINDOW_MS) return; // completed: stop watching after 14d
+      const email = rec.properties?.email;
+      if (!email) return;
+      const ownerId = await getDealOwnerId(rec.id);
+      const owner = ownerId ? ownerMap[String(ownerId)] : null;
+      if (!owner?.email) return;
+      const replied = await hasMailFrom(owner.email, email, lastSend);
+      if (replied !== true) return;
+
+      if (unenroll) await updateContact(rec.id, { dw_campaign: '', dw_next_send: '' });
+      await logEvent({
+        type: 'replied', contact: email, campaign: rec.properties?.dw_campaign,
+        step: Math.max(1, parseInt(rec.properties?.dw_campaign_step || '2', 10) - 1), sender: owner.email,
+        detail: unenroll ? 'sequence stopped — reply detected by sweep' : 'reply after sequence completed'
+      });
+      await bumpStat(rec.properties?.dw_campaign, 'replied');
+      summary.replied++;
+    }
+
     try {
-      const waiting = await getWaitingContacts(100);
-      for (const w of waiting) {
-        try {
-          if (!(await shouldReplyCheck(w.id, 4))) continue; // throttle: each contact checked at most every 4h
-          const lastSend = await getLastSend(w.id);
-          if (!lastSend) continue;
-          const email = w.properties?.email;
-          if (!email) continue;
-          const ownerId = await getDealOwnerId(w.id);
-          const owner = ownerId ? ownerMap[String(ownerId)] : null;
-          if (!owner?.email) continue;
-          const replied = await hasMailFrom(owner.email, email, lastSend);
-          if (replied === true) {
-            await updateContact(w.id, { dw_campaign: '', dw_next_send: '' });
-            await logEvent({ type: 'replied', contact: email, campaign: w.properties?.dw_campaign, step: parseInt(w.properties?.dw_campaign_step || '0', 10) - 1 || undefined, sender: owner.email, detail: 'sequence stopped — reply detected by sweep' });
-            await bumpStat(w.properties?.dw_campaign, 'replied');
-            summary.replied++;
-          }
-        } catch { /* per-contact failures never break the sweep */ }
-      }
+      const [waiting, completed] = await Promise.all([getWaitingContacts(100), getCompletedContacts(100)]);
+      for (const w of waiting)  { try { await checkReply(w, { unenroll: true  }); } catch { /* keep sweeping */ } }
+      for (const d of completed) { try { await checkReply(d, { unenroll: false }); } catch { /* keep sweeping */ } }
     } catch (e) {
       summary.errors.push({ warn: `reply sweep: ${e.message}` });
     }
