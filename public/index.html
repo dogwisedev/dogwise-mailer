@@ -189,6 +189,23 @@
     .camp-list { display: flex; padding: 0 10px; }
     .main { padding: 20px 16px; }
   }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .stat-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
+  .stat-card .big { font-family: 'Sora'; font-size: 24px; font-weight: 700; color: var(--navy); }
+  .stat-card .big.green { color: var(--green); }
+  .stat-card .big.amber { color: var(--brass); }
+  .stat-card .lbl { font-size: 10.5px; color: var(--slate); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+  .stat-card .wk { font-size: 11px; color: #9CA3AF; margin-top: 6px; }
+  .act-table-wrap { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); overflow: auto; max-height: 480px; }
+  .act-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .act-table th { text-align: left; padding: 10px 12px; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--slate); border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--card); }
+  .act-table td { padding: 8px 12px; border-bottom: 1px solid #F1F4F8; color: var(--ink); }
+  .pill { padding: 2px 9px; border-radius: 999px; font-size: 10.5px; font-weight: 600; }
+  .pill.sent { background: #E8F0FA; color: var(--navy); }
+  .pill.opened { background: #FBF3E4; color: var(--brass); }
+  .pill.replied { background: #E7F5EC; color: var(--green); }
+  .pill.error { background: #FDECEA; color: var(--red); }
 </style>
 </head>
 <body>
@@ -210,6 +227,7 @@
   <aside class="side">
     <div class="brand">Dogwise Campaigns<small>Emails send from each lead's deal owner</small></div>
     <div class="camp-list" id="campList"></div>
+    <button class="side-btn" id="activityBtn" style="border-style:solid;margin-bottom:0">📊 Activity</button>
     <button class="side-btn" id="newCampBtn">＋ New campaign</button>
   </aside>
 
@@ -240,8 +258,21 @@
     <button class="add-step" id="addStepBtn">＋ Add a follow-up email</button>
     <button class="btn btn-danger-ghost" id="deleteBtn" style="margin-top:16px">Delete this campaign</button>
 
+    <div id="activityView" style="display:none">
+      <div class="stat-grid" id="statGrid"></div>
+      <div class="act-table-wrap">
+        <table class="act-table">
+          <thead><tr><th>Time</th><th>Event</th><th>Contact</th><th>Campaign</th><th>Step</th><th>From</th></tr></thead>
+          <tbody id="actRows"></tbody>
+        </table>
+      </div>
+      <div class="hint" style="margin-top:10px;font-size:11px;color:#9CA3AF">Opens are approximate (some mail apps auto-load or block images). Replies are exact — a reply also stops that contact's sequence automatically. Refreshes every 30s.</div>
+    </div>
+
+    <div id="editorView">
     <div class="howto">
       <b>How leads get these emails:</b> your HubSpot workflow (or the enroll button in the extension) puts a contact into a campaign. From then on this app sends each email at the right time, <b>from the lead's deal owner's Gmail</b>, with <code>{{firstname}}</code> filled in automatically. Every send appears on the contact's HubSpot timeline. Contacts who opt out or leave the campaign stop receiving emails immediately.
+    </div>
     </div>
   </main>
 </div>
@@ -336,7 +367,7 @@ function renderList() {
     div.className = 'camp-item' + (key === activeKey ? ' active' : '');
     div.innerHTML = (key === 'welcome' ? '<span class="pin">📌</span>' : '<span class="pin">✉️</span>')
       + `<span>${esc(c.label)}</span><span class="n">${c.steps.length} email${c.steps.length > 1 ? 's' : ''}</span>`;
-    div.onclick = () => selectCampaign(key);
+    div.onclick = () => showEditor(key);
     el.appendChild(div);
   }
 }
@@ -503,6 +534,61 @@ $('testBtn').onclick = () => {
 };
 $('testSendBtn').onclick = sendTest;
 document.querySelectorAll('.modal-bg').forEach(m => m.addEventListener('click', e => { if (e.target === m) m.style.display = 'none'; }));
+
+
+let activityTimer = null;
+
+function showActivity() {
+  document.getElementById('editorView').style.display = 'none';
+  document.getElementById('activityView').style.display = 'block';
+  document.getElementById('campTitle').textContent = 'Activity';
+  document.getElementById('campSub').textContent = 'Live send / open / reply feed across all campaigns';
+  document.getElementById('campLabel').parentElement.parentElement.style.display = 'none';
+  document.getElementById('testBtn').style.display = 'none';
+  document.getElementById('saveBtn').style.display = 'none';
+  activeKey = null;
+  renderList();
+  loadActivity();
+  clearInterval(activityTimer);
+  activityTimer = setInterval(loadActivity, 30000);
+}
+
+function showEditor(key) {
+  clearInterval(activityTimer);
+  document.getElementById('activityView').style.display = 'none';
+  document.getElementById('editorView').style.display = 'block';
+  document.getElementById('campLabel').parentElement.parentElement.style.display = 'flex';
+  document.getElementById('testBtn').style.display = 'inline-block';
+  document.getElementById('saveBtn').style.display = 'inline-block';
+  selectCampaign(key);
+}
+
+async function loadActivity() {
+  const res = await api('/api/activity');
+  if (!res.ok) return;
+  const { events, stats } = await res.json();
+
+  document.getElementById('statGrid').innerHTML = `
+    <div class="stat-card"><div class="big">${stats.today.sent}</div><div class="lbl">Sent today</div><div class="wk">${stats.week.sent} this week</div></div>
+    <div class="stat-card"><div class="big amber">${stats.today.opened}</div><div class="lbl">Opened today</div><div class="wk">${stats.week.opened} this week</div></div>
+    <div class="stat-card"><div class="big green">${stats.today.replied}</div><div class="lbl">Replied today</div><div class="wk">${stats.week.replied} this week</div></div>
+    <div class="stat-card"><div class="big" style="color:${stats.today.errors ? '#C0392B' : '#9CA3AF'}">${stats.today.errors}</div><div class="lbl">Errors today</div><div class="wk">${stats.week.errors} this week</div></div>`;
+
+  document.getElementById('actRows').innerHTML = events.map(e => {
+    const d = new Date(e.t);
+    const time = d.toLocaleDateString(undefined, {month:'short', day:'numeric'}) + ' ' + d.toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'});
+    return `<tr>
+      <td style="white-space:nowrap;color:#6B7280">${time}</td>
+      <td><span class="pill ${e.type}">${e.type}</span></td>
+      <td>${esc(e.contact || e.detail || '')}</td>
+      <td>${esc(e.campaign || '')}</td>
+      <td>${e.step || ''}</td>
+      <td style="color:#6B7280">${esc(e.sender || '')}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="6" style="text-align:center;color:#9CA3AF;padding:24px">No activity yet — events appear here as emails send</td></tr>';
+}
+
+document.getElementById('activityBtn').onclick = showActivity;
 
 if (pw) login();
 </script>
