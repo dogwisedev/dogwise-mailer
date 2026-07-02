@@ -17,12 +17,20 @@ async function hs(path) {
 }
 
 function extractIds(payload) {
-  // HubSpot workflow webhooks send the enrolled record. Cover the common shapes.
-  const objectId = payload?.objectId || payload?.vid || payload?.hs_object_id || payload?.properties?.hs_object_id?.value || payload?.properties?.hs_object_id;
-  const objectType = (payload?.objectTypeId === '0-1' || payload?.subscriptionType?.includes('contact') || payload?.vid) ? 'contact'
-    : (payload?.objectTypeId === '0-3') ? 'deal'
+  // HubSpot workflow webhooks vary by version. Hunt for the record id across known shapes.
+  const p = payload || {};
+  const cand =
+    p.objectId ?? p.hs_object_id ?? p.vid ?? p.dealId ?? p.contactId ??
+    p.object?.objectId ?? p.primaryObjectId ??
+    p.properties?.hs_object_id?.value ?? p.properties?.hs_object_id ??
+    (Array.isArray(p) && p[0]?.objectId) ?? null;
+
+  const typeHint = String(p.objectTypeId || p.objectType || p.subscriptionType || '').toLowerCase();
+  const objectType = typeHint.includes('0-1') || typeHint.includes('contact') || p.vid ? 'contact'
+    : typeHint.includes('0-3') || typeHint.includes('deal') || p.dealId ? 'deal'
     : null;
-  return { objectId: objectId ? String(objectId) : null, objectType };
+
+  return { objectId: cand != null ? String(cand) : null, objectType };
 }
 
 export default async function handler(req, res) {
@@ -32,7 +40,7 @@ export default async function handler(req, res) {
   }
 
   const { objectId, objectType } = extractIds(req.body || {});
-  if (!objectId) return res.status(200).json({ ok: false, reason: 'no object id in payload', received: Object.keys(req.body || {}) });
+  if (!objectId) return res.status(200).json({ ok: false, reason: 'no object id in payload', receivedSample: JSON.stringify(req.body || {}).slice(0, 800) });
 
   try {
     // Resolve to contact IDs
