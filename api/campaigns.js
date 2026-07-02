@@ -9,6 +9,7 @@ function authorized(req) {
 function validCampaign(c) {
   if (!c || typeof c.label !== 'string' || !c.label.trim()) return 'Campaign needs a name';
   if (!Array.isArray(c.steps) || c.steps.length === 0) return 'Campaign needs at least one email';
+  if (c.sendAs && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.sendAs)) return 'Send-from must be a full email address (or blank for deal owner)';
   for (const [i, s] of c.steps.entries()) {
     if (!s.subject?.trim()) return `Email ${i + 1} needs a subject`;
     if (!s.body?.trim()) return `Email ${i + 1} needs a body`;

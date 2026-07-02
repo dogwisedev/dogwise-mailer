@@ -282,6 +282,11 @@
         <label>Campaign name</label>
         <input type="text" id="campLabel" placeholder="e.g. Summer Re-engagement">
       </div>
+      <div class="field">
+        <label>Send from (optional)</label>
+        <input type="text" id="campSendAs" placeholder="Blank = each lead's deal owner">
+        <div class="hint">Enter a @dogwiseacademy.com address to send this whole campaign from one person</div>
+      </div>
     </div>
 
     <div class="leash" id="leash"></div>
@@ -414,6 +419,7 @@ function selectCampaign(key) {
     ? 'Always on — every new lead gets this first. Edit freely; it can\'t be deleted.'
     : `Campaign key: ${key}`;
   $('campLabel').value = c.label;
+  $('campSendAs').value = c.sendAs || '';
   $('deleteBtn').style.display = key === 'welcome' ? 'none' : 'inline-block';
   renderList();
   renderSteps();
@@ -498,6 +504,8 @@ function removeStep(i) {
 async function save() {
   const c = campaigns[activeKey];
   c.label = $('campLabel').value.trim() || c.label;
+  c.sendAs = $('campSendAs').value.trim();
+  if (!c.sendAs) delete c.sendAs;
   $('saveBtn').disabled = true;
   const res = await api('/api/campaigns', { method: 'POST', body: JSON.stringify({ key: activeKey, campaign: c }) });
   const data = await res.json();
