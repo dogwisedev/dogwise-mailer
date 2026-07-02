@@ -1,0 +1,9 @@
+{
+  "name": "dogwise-mailer",
+  "version": "1.0.0",
+  "description": "Sequence email sender — HubSpot sweep + Gmail send as deal owner (domain-wide delegation)",
+  "type": "module",
+  "dependencies": {
+    "google-auth-library": "^9.14.0"
+  }
+}

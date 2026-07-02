@@ -1,0 +1,12 @@
+{
+  "welcome": {
+    "label": "Welcome Email (new leads)",
+    "steps": [
+      {
+        "delayDaysAfter": null,
+        "subject": "Welcome to Dogwise, {{firstname}}! 🐕",
+        "body": "Hi {{firstname}},\n\nThanks for reaching out to Dogwise Academy! I saw your inquiry come in and wanted to introduce myself personally — I'll be your point of contact here.\n\nOur board-and-train programs are built around one idea: real training happens in real life, not just in a classroom. I'd love to hear a bit more about your dog and what you're hoping to work on.\n\nDo you have 10 minutes this week for a quick call?\n\nBest,\n{{sender_firstname}}"
+      }
+    ]
+  }
+}
