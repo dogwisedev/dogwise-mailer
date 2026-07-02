@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dogwise Campaigns</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #1B4F8A;
+    --navy-deep: #123a68;
+    --ink: #1E2A38;
+    --paper: #F6F8FA;
+    --card: #FFFFFF;
+    --line: #E3E9F0;
+    --slate: #64748B;
+    --brass: #C9862B;
+    --brass-soft: #FBF3E4;
+    --green: #2E7D46;
+    --red: #C0392B;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 14px;
+    min-height: 100vh;
+  }
+  h1, h2, h3, .brand { font-family: 'Sora', sans-serif; }
+
+  /* ---------- password gate ---------- */
+  .gate {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(160deg, var(--navy) 0%, var(--navy-deep) 100%);
+  }
+  .gate-card {
+    background: var(--card); border-radius: 14px; padding: 40px 36px; width: 360px;
+    box-shadow: 0 20px 60px rgba(10, 30, 60, 0.35);
+  }
+  .gate-card .paw { font-size: 34px; }
+  .gate-card h1 { font-size: 20px; margin: 12px 0 4px; }
+  .gate-card p { color: var(--slate); font-size: 13px; margin-bottom: 20px; }
+  .gate-card input {
+    width: 100%; padding: 11px 13px; border: 1.5px solid var(--line); border-radius: 8px;
+    font-size: 14px; outline: none; margin-bottom: 12px;
+  }
+  .gate-card input:focus { border-color: var(--navy); }
+  .gate-err { color: var(--red); font-size: 12px; margin: -6px 0 10px; display: none; }
+
+  /* ---------- app shell ---------- */
+  .app { display: none; grid-template-columns: 280px 1fr; min-height: 100vh; }
+  .side {
+    background: var(--navy); color: #fff; padding: 22px 0; display: flex; flex-direction: column;
+  }
+  .brand { padding: 0 22px 18px; font-size: 16px; font-weight: 700; letter-spacing: 0.2px; border-bottom: 1px solid rgba(255,255,255,0.14); }
+  .brand small { display: block; font-family: 'Inter'; font-weight: 400; font-size: 11px; opacity: 0.6; margin-top: 3px; }
+  .camp-list { flex: 1; overflow-y: auto; padding: 14px 12px; }
+  .camp-item {
+    padding: 11px 12px; border-radius: 8px; cursor: pointer; margin-bottom: 4px;
+    font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 9px;
+    transition: background 0.12s; border: 1px solid transparent;
+  }
+  .camp-item:hover { background: rgba(255,255,255,0.08); }
+  .camp-item.active { background: rgba(255,255,255,0.16); border-color: rgba(255,255,255,0.2); }
+  .camp-item .n { opacity: 0.55; font-size: 11px; margin-left: auto; }
+  .camp-item .pin { font-size: 12px; }
+  .side-btn {
+    margin: 12px 22px 0; padding: 10px; border-radius: 8px; border: 1.5px dashed rgba(255,255,255,0.4);
+    background: none; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Inter';
+  }
+  .side-btn:hover { background: rgba(255,255,255,0.08); }
+
+  /* ---------- main ---------- */
+  .main { padding: 26px 34px 60px; max-width: 1340px; }
+  .main-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 22px; gap: 16px; }
+  .main-head h2 { font-size: 21px; }
+  .main-head .sub { color: var(--slate); font-size: 12.5px; margin-top: 4px; }
+  .head-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+  .btn {
+    padding: 9px 16px; border-radius: 8px; border: none; cursor: pointer;
+    font-size: 13px; font-weight: 600; font-family: 'Inter'; transition: all 0.12s;
+  }
+  .btn-primary { background: var(--navy); color: #fff; }
+  .btn-primary:hover { background: var(--navy-deep); }
+  .btn-ghost { background: #fff; color: var(--ink); border: 1.5px solid var(--line); }
+  .btn-ghost:hover { border-color: var(--slate); }
+  .btn-danger-ghost { background: none; color: var(--red); border: none; font-size: 12.5px; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 11.5px; font-weight: 600; color: var(--slate); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .field input[type=text], .field textarea {
+    width: 100%; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 8px;
+    font-size: 13.5px; font-family: 'Inter'; outline: none; background: #fff; color: var(--ink);
+  }
+  .field input:focus, .field textarea:focus { border-color: var(--navy); }
+  .field textarea { min-height: 150px; resize: vertical; line-height: 1.55; }
+
+  /* ---------- the leash: sequence timeline ---------- */
+  .leash { position: relative; padding-left: 30px; }
+  .leash::before {
+    content: ''; position: absolute; left: 9px; top: 26px; bottom: 26px; width: 0;
+    border-left: 2.5px dotted #B9C9DC;
+  }
+  .step-card {
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 20px 22px; margin-bottom: 0; position: relative;
+    box-shadow: 0 1px 3px rgba(20, 40, 70, 0.05);
+  }
+  .step-card::before {
+    content: ''; position: absolute; left: -27px; top: 24px; width: 14px; height: 14px;
+    background: var(--navy); border-radius: 50%; border: 3px solid var(--paper);
+  }
+  .step-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .step-head h3 { font-size: 14px; }
+  .step-tools { margin-left: auto; display: flex; gap: 2px; }
+  .icon-btn { border: none; background: none; cursor: pointer; font-size: 14px; padding: 4px 7px; border-radius: 6px; color: var(--slate); }
+  .icon-btn:hover { background: var(--paper); color: var(--ink); }
+
+  .wait-tag {
+    display: flex; align-items: center; gap: 8px; margin: 10px 0 10px -2px;
+    position: relative;
+  }
+  .wait-pill {
+    background: var(--brass-soft); border: 1px solid #EBD5AE; color: var(--brass);
+    font-size: 12px; font-weight: 600; padding: 5px 12px 5px 10px; border-radius: 999px;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .wait-pill input {
+    width: 42px; border: none; background: none; font: inherit; color: inherit;
+    text-align: center; outline: none; border-bottom: 1.5px solid #EBD5AE;
+  }
+
+  .tokens { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .token {
+    font-size: 11.5px; font-weight: 500; padding: 4px 10px; border-radius: 999px;
+    background: var(--paper); border: 1px solid var(--line); cursor: pointer; color: var(--navy);
+  }
+  .token:hover { border-color: var(--navy); }
+
+  .add-step {
+    margin-top: 14px; margin-left: -30px; width: calc(100% + 30px);
+    padding: 12px; border: 1.5px dashed var(--line); background: none; border-radius: var(--radius);
+    color: var(--slate); font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Inter';
+  }
+  .add-step:hover { border-color: var(--navy); color: var(--navy); }
+
+  .meta-row { display: flex; gap: 14px; margin-bottom: 20px; }
+  .meta-row .field { flex: 1; margin-bottom: 0; }
+
+  .banner {
+    padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 18px; display: none;
+  }
+  .banner.warn { background: #FFF6E5; border: 1px solid #F5DFB2; color: #8A5A00; display: block; }
+
+  .toast {
+    position: fixed; bottom: 24px; right: 24px; background: var(--ink); color: #fff;
+    padding: 12px 18px; border-radius: 9px; font-size: 13px; font-weight: 500;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25); opacity: 0; transform: translateY(8px);
+    transition: all 0.25s; pointer-events: none; max-width: 380px;
+  }
+  .toast.show { opacity: 1; transform: none; }
+  .toast.ok { background: var(--green); }
+  .toast.err { background: var(--red); }
+
+  /* ---------- modal ---------- */
+  .modal-bg {
+    display: none; position: fixed; inset: 0; background: rgba(15, 30, 50, 0.5);
+    align-items: center; justify-content: center; z-index: 50;
+  }
+  .modal {
+    background: #fff; border-radius: 14px; padding: 28px; width: 440px; max-width: 92vw;
+  }
+  .modal h3 { font-size: 16px; margin-bottom: 6px; }
+  .modal .sub { color: var(--slate); font-size: 12.5px; margin-bottom: 18px; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+
+  .howto { color: var(--slate); font-size: 12.5px; line-height: 1.6; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 20px; margin-top: 30px; }
+  .howto b { color: var(--ink); }
+  .howto code { background: var(--paper); padding: 1px 6px; border-radius: 4px; font-size: 11.5px; }
+
+  @media (max-width: 760px) {
+    .app { grid-template-columns: 1fr; }
+    .side { flex-direction: row; align-items: center; overflow-x: auto; padding: 12px; }
+    .camp-list { display: flex; padding: 0 10px; }
+    .main { padding: 20px 16px; }
+  }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .stat-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
+  .stat-card .big { font-family: 'Sora'; font-size: 24px; font-weight: 700; color: var(--navy); }
+  .stat-card .big.green { color: var(--green); }
+  .stat-card .big.amber { color: var(--brass); }
+  .stat-card .lbl { font-size: 10.5px; color: var(--slate); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+  .stat-card .wk { font-size: 11px; color: #9CA3AF; margin-top: 6px; }
+  .act-table-wrap { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); overflow: auto; max-height: 480px; }
+  .act-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .act-table th { text-align: left; padding: 10px 12px; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--slate); border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--card); }
+  .act-table td { padding: 8px 12px; border-bottom: 1px solid #F1F4F8; color: var(--ink); }
+  .pill { padding: 2px 9px; border-radius: 999px; font-size: 10.5px; font-weight: 600; }
+  .pill.sent { background: #E8F0FA; color: var(--navy); }
+  .pill.opened { background: #FBF3E4; color: var(--brass); }
+  .pill.replied { background: #E7F5EC; color: var(--green); }
+  .pill.error { background: #FDECEA; color: var(--red); }
+
+  #editorView { display: grid; grid-template-columns: minmax(0, 860px) 340px; gap: 30px; align-items: start; }
+  .camp-side { position: sticky; top: 20px; }
+  .camp-side .cs-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; margin-bottom: 14px; }
+  .camp-side h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--slate); margin-bottom: 12px; }
+  .cs-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; }
+  .cs-stats .n { font-family: 'Sora'; font-size: 20px; font-weight: 700; color: var(--navy); }
+  .cs-stats .n.amber { color: var(--brass); } .cs-stats .n.green { color: var(--green); }
+  .cs-stats .l { font-size: 9.5px; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.4px; margin-top: 2px; }
+  .cs-feed { max-height: 380px; overflow-y: auto; }
+  .cs-evt { display: flex; gap: 8px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid #F1F4F8; font-size: 11.5px; }
+  .cs-evt:last-child { border-bottom: none; }
+  .cs-evt .who { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+  .cs-evt .when { color: #9CA3AF; font-size: 10.5px; white-space: nowrap; }
+  .cs-empty { color: #9CA3AF; font-size: 12px; text-align: center; padding: 14px 0; }
+  @media (max-width: 1150px) { #editorView { grid-template-columns: 1fr; } .camp-side { position: static; } }
+</style>
+</head>
+<body>
+
+<!-- Password gate -->
+<div class="gate" id="gate">
+  <div class="gate-card">
+    <div class="paw">🐾</div>
+    <h1>Dogwise Campaigns</h1>
+    <p>Enter the team password to manage email campaigns.</p>
+    <input type="password" id="pw" placeholder="Password" autocomplete="current-password">
+    <div class="gate-err" id="gateErr">That password didn't work — try again.</div>
+    <button class="btn btn-primary" style="width:100%" id="loginBtn">Open dashboard</button>
+  </div>
+</div>
+
+<!-- App -->
+<div class="app" id="app">
+  <aside class="side">
+    <div class="brand">Dogwise Campaigns<small>Emails send from each lead's deal owner</small></div>
+    <div class="camp-list" id="campList"></div>
+    <button class="side-btn" id="activityBtn" style="border-style:solid;margin-bottom:0">📊 Activity</button>
+    <button class="side-btn" id="newCampBtn">＋ New campaign</button>
+  </aside>
+
+  <main class="main">
+    <div class="banner warn" id="storeBanner" style="display:none">
+      ⚠️ No database connected yet — edits can't be saved. In Vercel: project → <b>Storage</b> tab → create an <b>Upstash Redis</b> database (free) → redeploy.
+    </div>
+
+    <div class="main-head">
+      <div>
+        <h2 id="campTitle">—</h2>
+        <div class="sub" id="campSub"></div>
+      </div>
+      <div class="head-actions">
+        <button class="btn btn-ghost" id="testBtn">Send me a test</button>
+        <button class="btn btn-primary" id="saveBtn">Save changes</button>
+      </div>
+    </div>
+
+    <div id="activityView" style="display:none">
+      <div class="stat-grid" id="statGrid"></div>
+      <div class="act-table-wrap" id="campTotals" style="margin-bottom:14px;max-height:none"></div>
+      <div class="act-table-wrap">
+        <table class="act-table">
+          <thead><tr><th>Time</th><th>Event</th><th>Contact</th><th>Campaign</th><th>Step</th><th>From</th></tr></thead>
+          <tbody id="actRows"></tbody>
+        </table>
+      </div>
+      <div class="hint" style="margin-top:10px;font-size:11px;color:#9CA3AF">Opens are approximate (some mail apps auto-load or block images). Replies are exact — a reply also stops that contact's sequence automatically. Refreshes every 30s.</div>
+    </div>
+
+    <div id="editorView">
+    <div class="ed-main">
+    <div class="meta-row">
+      <div class="field">
+        <label>Campaign name</label>
+        <input type="text" id="campLabel" placeholder="e.g. Summer Re-engagement">
+      </div>
+      <div class="field">
+        <label>Send from (optional)</label>
+        <input type="text" id="campSendAs" placeholder="Blank = each lead's deal owner">
+        <div class="hint">Enter a @dogwiseacademy.com address to send this whole campaign from one person</div>
+      </div>
+    </div>
+
+    <div class="leash" id="leash"></div>
+    <button class="add-step" id="addStepBtn">＋ Add a follow-up email</button>
+    <button class="btn btn-danger-ghost" id="deleteBtn" style="margin-top:16px">Delete this campaign</button>
+
+    
+
+    <div class="howto">
+      <b>How leads get these emails:</b> your HubSpot workflow (or the enroll button in the extension) puts a contact into a campaign. From then on this app sends each email at the right time, <b>from the lead's deal owner's Gmail</b>, with <code>{{firstname}}</code> filled in automatically. Every send appears on the contact's HubSpot timeline. Contacts who opt out or leave the campaign stop receiving emails immediately.
+    </div>
+    </div>
+
+    <aside class="camp-side" id="campSide">
+      <div class="cs-card">
+        <h3>This campaign — all time</h3>
+        <div class="cs-stats" id="csStats"><div><div class="n">–</div><div class="l">Sent</div></div><div><div class="n amber">–</div><div class="l">Opened</div></div><div><div class="n green">–</div><div class="l">Replied</div></div></div>
+      </div>
+      <div class="cs-card">
+        <h3>Recent activity</h3>
+        <div class="cs-feed" id="csFeed"><div class="cs-empty">No activity yet for this campaign</div></div>
+      </div>
+    </aside>
+    </div>
+  </main>
+</div>
+
+<!-- New campaign modal -->
+<div class="modal-bg" id="newModal">
+  <div class="modal">
+    <h3>New campaign</h3>
+    <div class="sub">Give it a name — you can add emails right after.</div>
+    <div class="field">
+      <label>Campaign name</label>
+      <input type="text" id="newName" placeholder="e.g. Board & Train Follow-up">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('newModal')">Cancel</button>
+      <button class="btn btn-primary" id="createBtn">Create campaign</button>
+    </div>
+  </div>
+</div>
+
+<!-- Test send modal -->
+<div class="modal-bg" id="testModal">
+  <div class="modal">
+    <h3>Send yourself a test</h3>
+    <div class="sub">Sends email #1 of this campaign, exactly as a lead would receive it (tokens filled with sample values).</div>
+    <div class="field">
+      <label>Send from (must be a @dogwiseacademy.com account)</label>
+      <input type="text" id="testAs" placeholder="you@dogwiseacademy.com">
+    </div>
+    <div class="field">
+      <label>Send to</label>
+      <input type="text" id="testTo" placeholder="you@dogwiseacademy.com">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('testModal')">Cancel</button>
+      <button class="btn btn-primary" id="testSendBtn">Send test</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const TOKENS = [
+  ['{{firstname}}', "Lead's first name"],
+  ['{{lastname}}', "Lead's last name"],
+  ['{{email}}', "Lead's email — for pre-filled form links"],
+  ['{{sender_firstname}}', "Deal owner's first name"],
+  ['{{sender_lastname}}', "Deal owner's last name"]
+];
+
+let pw = sessionStorage.getItem('dw_pw') || '';
+let campaigns = {};
+let activeKey = null;
+let lastFocusedText = null;
+
+const $ = id => document.getElementById(id);
+
+function toast(msg, cls = '') {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + cls;
+  setTimeout(() => t.className = 'toast', 3200);
+}
+
+function api(path, opts = {}) {
+  return fetch(path, {
+    ...opts,
+    headers: { 'Authorization': 'Bearer ' + pw, 'Content-Type': 'application/json', ...(opts.headers || {}) }
+  });
+}
+
+async function login() {
+  pw = $('pw').value.trim();
+  const res = await api('/api/campaigns');
+  if (res.status === 401) { $('gateErr').style.display = 'block'; return; }
+  const data = await res.json();
+  sessionStorage.setItem('dw_pw', pw);
+  campaigns = data.campaigns || {};
+  $('storeBanner').style.display = data.storeConfigured ? 'none' : 'block';
+  $('gate').style.display = 'none';
+  $('app').style.display = 'grid';
+  selectCampaign(campaigns['welcome'] ? 'welcome' : Object.keys(campaigns)[0]);
+}
+
+function renderList() {
+  const el = $('campList');
+  el.innerHTML = '';
+  const keys = Object.keys(campaigns).sort((a, b) => (a === 'welcome' ? -1 : b === 'welcome' ? 1 : a.localeCompare(b)));
+  for (const key of keys) {
+    const c = campaigns[key];
+    const div = document.createElement('div');
+    div.className = 'camp-item' + (key === activeKey ? ' active' : '');
+    div.innerHTML = (key === 'welcome' ? '<span class="pin">📌</span>' : '<span class="pin">✉️</span>')
+      + `<span>${esc(c.label)}</span><span class="n">${c.steps.length} email${c.steps.length > 1 ? 's' : ''}</span>`;
+    div.onclick = () => showEditor(key);
+    el.appendChild(div);
+  }
+}
+
+function selectCampaign(key) {
+  activeKey = key;
+  const c = campaigns[key];
+  if (!c) return;
+  $('campTitle').textContent = c.label;
+  $('campSub').textContent = key === 'welcome'
+    ? 'Always on — every new lead gets this first. Edit freely; it can\'t be deleted.'
+    : `Campaign key: ${key}`;
+  $('campLabel').value = c.label;
+  $('campSendAs').value = c.sendAs || '';
+  $('deleteBtn').style.display = key === 'welcome' ? 'none' : 'inline-block';
+  renderList();
+  renderSteps();
+  if (actCache) renderCampSide(key); fetchActivity().then(() => renderCampSide(key));
+}
+
+function renderSteps() {
+  const c = campaigns[activeKey];
+  const leash = $('leash');
+  leash.innerHTML = '';
+  c.steps.forEach((step, i) => {
+    const card = document.createElement('div');
+    card.className = 'step-card';
+    card.innerHTML = `
+      <div class="step-head">
+        <h3>Email ${i + 1}${i === 0 ? ' — sent on enrollment' : ''}</h3>
+        <div class="step-tools">
+          ${i > 0 ? `<button class="icon-btn" title="Move up" onclick="moveStep(${i},-1)">↑</button>` : ''}
+          ${i < c.steps.length - 1 ? `<button class="icon-btn" title="Move down" onclick="moveStep(${i},1)">↓</button>` : ''}
+          ${c.steps.length > 1 ? `<button class="icon-btn" title="Remove" onclick="removeStep(${i})">✕</button>` : ''}
+        </div>
+      </div>
+      <div class="field">
+        <label>Subject line</label>
+        <input type="text" data-i="${i}" data-f="subject" value="${esc(step.subject)}">
+      </div>
+      <div class="field" style="margin-bottom:4px">
+        <label>Email body</label>
+        <textarea data-i="${i}" data-f="body">${esc(step.body)}</textarea>
+        <div class="tokens">${TOKENS.map(([t, d]) => `<span class="token" title="${d}" onclick="insertToken('${t}')">${t}</span>`).join('')}
+          <span class="token" title="Adds a styled button" onclick="insertToken('[[button:Book a call|https://your-link.com]]')">+ Button</span>
+          <span class="token" title="Shows a hosted image — paste the image URL" onclick="insertToken('![photo](https://your-image-url.jpg)')">+ Image</span>
+          <span class="token" title="Turns text into a link" onclick="insertToken('[link text](https://your-link.com)')">+ Link</span></div>
+      </div>`;
+    leash.appendChild(card);
+
+    if (i < c.steps.length - 1) {
+      const wait = document.createElement('div');
+      wait.className = 'wait-tag';
+      wait.innerHTML = `<span class="wait-pill">⏱ wait <input type="number" min="1" value="${step.delayDaysAfter ?? 2}" data-i="${i}" data-f="delay"> day(s), then send the next email</span>`;
+      leash.appendChild(wait);
+    }
+  });
+
+  leash.querySelectorAll('input[type=text], textarea').forEach(el => {
+    el.addEventListener('input', syncField);
+    el.addEventListener('focus', e => { if (e.target.dataset.f) lastFocusedText = e.target; });
+  });
+  leash.querySelectorAll('input[type=number]').forEach(el => el.addEventListener('input', syncField));
+}
+
+function syncField(e) {
+  const { i, f } = e.target.dataset;
+  const step = campaigns[activeKey].steps[+i];
+  if (f === 'subject') step.subject = e.target.value;
+  if (f === 'body') step.body = e.target.value;
+  if (f === 'delay') step.delayDaysAfter = Math.max(1, parseInt(e.target.value) || 1);
+}
+
+function insertToken(tok) {
+  const el = lastFocusedText;
+  if (!el) { toast('Click into a subject or body first, then tap a token'); return; }
+  const start = el.selectionStart, end = el.selectionEnd;
+  el.value = el.value.slice(0, start) + tok + el.value.slice(end);
+  el.dispatchEvent(new Event('input'));
+  el.focus();
+  el.selectionStart = el.selectionEnd = start + tok.length;
+}
+
+function moveStep(i, dir) {
+  const steps = campaigns[activeKey].steps;
+  const [s] = steps.splice(i, 1);
+  steps.splice(i + dir, 0, s);
+  renderSteps();
+}
+
+function removeStep(i) {
+  campaigns[activeKey].steps.splice(i, 1);
+  renderSteps();
+}
+
+async function save() {
+  const c = campaigns[activeKey];
+  c.label = $('campLabel').value.trim() || c.label;
+  c.sendAs = $('campSendAs').value.trim();
+  if (!c.sendAs) delete c.sendAs;
+  $('saveBtn').disabled = true;
+  const res = await api('/api/campaigns', { method: 'POST', body: JSON.stringify({ key: activeKey, campaign: c }) });
+  const data = await res.json();
+  $('saveBtn').disabled = false;
+  if (!res.ok) return toast(data.error || 'Could not save', 'err');
+  campaigns = data.campaigns;
+  toast('Saved — live within 30 minutes for due sends', 'ok');
+  selectCampaign(activeKey);
+}
+
+async function createCampaign() {
+  const name = $('newName').value.trim();
+  if (!name) return;
+  const key = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40) || 'campaign_' + Date.now();
+  campaigns[key] = {
+    label: name,
+    steps: [{ delayDaysAfter: null, subject: '', body: 'Hi {{firstname}},\n\n' }]
+  };
+  closeModal('newModal');
+  $('newName').value = '';
+  selectCampaign(key);
+  toast('Draft created — write your email, then Save');
+}
+
+async function deleteCampaign() {
+  if (!confirm(`Delete "${campaigns[activeKey].label}"? Contacts currently in it will stop receiving emails.`)) return;
+  const res = await api('/api/campaigns', { method: 'DELETE', body: JSON.stringify({ key: activeKey }) });
+  const data = await res.json();
+  if (!res.ok) return toast(data.error || 'Could not delete', 'err');
+  campaigns = data.campaigns;
+  toast('Campaign deleted', 'ok');
+  selectCampaign('welcome');
+}
+
+async function sendTest() {
+  const as = $('testAs').value.trim(), to = $('testTo').value.trim();
+  if (!as || !to) return toast('Fill in both addresses', 'err');
+  localStorage.setItem('dw_test_as', as); localStorage.setItem('dw_test_to', to);
+  const step = campaigns[activeKey].steps[0];
+  const fill = s => s.replace(/\{\{\s*firstname\s*\}\}/gi, 'Alex').replace(/\{\{\s*lastname\s*\}\}/gi, 'Sample').replace(/\{\{\s*email\s*\}\}/gi, encodeURIComponent($('testTo').value.trim()))
+    .replace(/\{\{\s*sender_firstname\s*\}\}/gi, 'Anita').replace(/\{\{\s*sender_lastname\s*\}\}/gi, 'Oliveira');
+  $('testSendBtn').disabled = true;
+  const res = await fetch('/api/test-send?secret=' + encodeURIComponent(pw), {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ as, to, subject: '[TEST] ' + fill(step.subject), body: fill(step.body), senderName: 'Dogwise Test' })
+  });
+  const data = await res.json();
+  $('testSendBtn').disabled = false;
+  closeModal('testModal');
+  if (data.ok) toast('Test sent — check your inbox ✉️', 'ok');
+  else toast(data.error || 'Test failed', 'err');
+}
+
+function closeModal(id) { $(id).style.display = 'none'; }
+function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
+
+$('loginBtn').onclick = login;
+$('pw').addEventListener('keydown', e => e.key === 'Enter' && login());
+$('saveBtn').onclick = save;
+$('newCampBtn').onclick = () => { $('newModal').style.display = 'flex'; $('newName').focus(); };
+$('createBtn').onclick = createCampaign;
+$('deleteBtn').onclick = deleteCampaign;
+$('addStepBtn').onclick = () => { campaigns[activeKey].steps.push({ delayDaysAfter: null, subject: '', body: 'Hi {{firstname}},\n\n' }); renderSteps(); };
+$('testBtn').onclick = () => {
+  $('testAs').value = localStorage.getItem('dw_test_as') || '';
+  $('testTo').value = localStorage.getItem('dw_test_to') || '';
+  $('testModal').style.display = 'flex';
+};
+$('testSendBtn').onclick = sendTest;
+document.querySelectorAll('.modal-bg').forEach(m => m.addEventListener('click', e => { if (e.target === m) m.style.display = 'none'; }));
+
+
+
+function showActivity() {
+  document.getElementById('editorView').style.display = 'none';
+  document.getElementById('activityView').style.display = 'block';
+  document.getElementById('campTitle').textContent = 'Activity';
+  document.getElementById('campSub').textContent = 'Live send / open / reply feed across all campaigns';
+  document.getElementById('campLabel').parentElement.parentElement.style.display = 'none';
+  document.getElementById('testBtn').style.display = 'none';
+  document.getElementById('saveBtn').style.display = 'none';
+  activeKey = null;
+  renderList();
+  loadActivity();
+}
+
+function showEditor(key) {
+  document.getElementById('activityView').style.display = 'none';
+  document.getElementById('editorView').style.display = 'grid';
+  document.getElementById('campLabel').parentElement.parentElement.style.display = 'flex';
+  document.getElementById('testBtn').style.display = 'inline-block';
+  document.getElementById('saveBtn').style.display = 'inline-block';
+  selectCampaign(key);
+}
+
+let actCache = null;
+async function fetchActivity() {
+  const res = await api('/api/activity');
+  if (res.ok) actCache = await res.json();
+  return actCache;
+}
+
+function renderCampSide(key) {
+  if (!actCache || !key) return;
+  const s = (actCache.allTime?.perCampaign || {})[key] || {};
+  document.getElementById('csStats').innerHTML =
+    `<div><div class="n">${s.sent || 0}</div><div class="l">Sent</div></div>
+     <div><div class="n amber">${s.opened || 0}</div><div class="l">Opened</div></div>
+     <div><div class="n green">${s.replied || 0}</div><div class="l">Replied</div></div>`;
+  const evts = (actCache.events || []).filter(e => e.campaign === key).slice(0, 30);
+  document.getElementById('csFeed').innerHTML = evts.length
+    ? evts.map(e => {
+        const d = new Date(e.t);
+        return `<div class="cs-evt"><span class="pill ${e.type}">${e.type}</span><span class="who">${esc(e.contact || '')}</span><span class="when">${d.toLocaleDateString(undefined,{month:'short',day:'numeric'})} ${d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'})}</span></div>`;
+      }).join('')
+    : '<div class="cs-empty">No activity yet for this campaign</div>';
+}
+
+async function loadActivity() {
+  const data = await fetchActivity();
+  if (!data) return;
+  const { events, stats, allTime } = data;
+  const at = (allTime && allTime.total) || {};
+
+  document.getElementById('statGrid').innerHTML = `
+    <div class="stat-card"><div class="big">${stats.today.sent}</div><div class="lbl">Sent today</div><div class="wk">${stats.week.sent} this week · ${at.sent || 0} all time</div></div>
+    <div class="stat-card"><div class="big amber">${stats.today.opened}</div><div class="lbl">Opened today</div><div class="wk">${stats.week.opened} this week · ${at.opened || 0} all time</div></div>
+    <div class="stat-card"><div class="big green">${stats.today.replied}</div><div class="lbl">Replied today</div><div class="wk">${stats.week.replied} this week · ${at.replied || 0} all time</div></div>
+    <div class="stat-card"><div class="big" style="color:${stats.today.errors ? '#C0392B' : '#9CA3AF'}">${stats.today.errors}</div><div class="lbl">Errors today</div><div class="wk">${stats.week.errors} this week</div></div>`;
+
+  // Per-campaign lifetime totals
+  const pc = (allTime && allTime.perCampaign) || {};
+  const rows = Object.entries(pc).map(([name, s]) => {
+    const openPct = s.sent ? Math.round((s.opened || 0) / s.sent * 100) : 0;
+    const replyPct = s.sent ? Math.round((s.replied || 0) / s.sent * 100) : 0;
+    return `<tr><td style="font-weight:600">${esc(name)}</td><td>${s.sent || 0}</td><td>${s.opened || 0} <span style="color:#9CA3AF">(${openPct}%)</span></td><td>${s.replied || 0} <span style="color:#9CA3AF">(${replyPct}%)</span></td></tr>`;
+  }).join('');
+  document.getElementById('campTotals').innerHTML = rows
+    ? `<table class="act-table"><thead><tr><th>Campaign — all time</th><th>Sent</th><th>Opened</th><th>Replied</th></tr></thead><tbody>${rows}</tbody></table>`
+    : '';
+
+  document.getElementById('actRows').innerHTML = events.map(e => {
+    const d = new Date(e.t);
+    const time = d.toLocaleDateString(undefined, {month:'short', day:'numeric'}) + ' ' + d.toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'});
+    return `<tr>
+      <td style="white-space:nowrap;color:#6B7280">${time}</td>
+      <td><span class="pill ${e.type}">${e.type}</span></td>
+      <td>${esc(e.contact || e.detail || '')}</td>
+      <td>${esc(e.campaign || '')}</td>
+      <td>${e.step || ''}</td>
+      <td style="color:#6B7280">${esc(e.sender || '')}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="6" style="text-align:center;color:#9CA3AF;padding:24px">No activity yet — events appear here as emails send</td></tr>';
+}
+
+document.getElementById('activityBtn').onclick = showActivity;
+
+setInterval(async () => {
+  await fetchActivity();
+  if (document.getElementById('activityView').style.display === 'block') loadActivity();
+  else if (activeKey) renderCampSide(activeKey);
+}, 30000);
+
+if (pw) login();
+</script>
+</body>
+</html>
