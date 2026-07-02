@@ -74,7 +74,7 @@
   .side-btn:hover { background: rgba(255,255,255,0.08); }
 
   /* ---------- main ---------- */
-  .main { padding: 26px 34px 60px; max-width: 860px; }
+  .main { padding: 26px 34px 60px; max-width: 1340px; }
   .main-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 22px; gap: 16px; }
   .main-head h2 { font-size: 21px; }
   .main-head .sub { color: var(--slate); font-size: 12.5px; margin-top: 4px; }
@@ -207,7 +207,7 @@
   .pill.replied { background: #E7F5EC; color: var(--green); }
   .pill.error { background: #FDECEA; color: var(--red); }
 
-  #editorView { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 26px; align-items: start; }
+  #editorView { display: grid; grid-template-columns: minmax(0, 860px) 340px; gap: 30px; align-items: start; }
   .camp-side { position: sticky; top: 20px; }
   .camp-side .cs-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; margin-bottom: 14px; }
   .camp-side h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--slate); margin-bottom: 12px; }
@@ -585,7 +585,7 @@ function showActivity() {
 
 function showEditor(key) {
   document.getElementById('activityView').style.display = 'none';
-  document.getElementById('editorView').style.display = 'block';
+  document.getElementById('editorView').style.display = 'grid';
   document.getElementById('campLabel').parentElement.parentElement.style.display = 'flex';
   document.getElementById('testBtn').style.display = 'inline-block';
   document.getElementById('saveBtn').style.display = 'inline-block';
