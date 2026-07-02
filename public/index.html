@@ -247,6 +247,18 @@
       </div>
     </div>
 
+    <div id="activityView" style="display:none">
+      <div class="stat-grid" id="statGrid"></div>
+      <div class="act-table-wrap" id="campTotals" style="margin-bottom:14px;max-height:none"></div>
+      <div class="act-table-wrap">
+        <table class="act-table">
+          <thead><tr><th>Time</th><th>Event</th><th>Contact</th><th>Campaign</th><th>Step</th><th>From</th></tr></thead>
+          <tbody id="actRows"></tbody>
+        </table>
+      </div>
+      <div class="hint" style="margin-top:10px;font-size:11px;color:#9CA3AF">Opens are approximate (some mail apps auto-load or block images). Replies are exact — a reply also stops that contact's sequence automatically. Refreshes every 30s.</div>
+    </div>
+
     <div id="editorView">
     <div class="meta-row">
       <div class="field">
@@ -259,17 +271,7 @@
     <button class="add-step" id="addStepBtn">＋ Add a follow-up email</button>
     <button class="btn btn-danger-ghost" id="deleteBtn" style="margin-top:16px">Delete this campaign</button>
 
-    <div id="activityView" style="display:none">
-      <div class="stat-grid" id="statGrid"></div>
-      <div class="act-table-wrap" id="campTotals" style="margin-bottom:14px;max-height:none"></div>
-      <div class="act-table-wrap">
-        <table class="act-table">
-          <thead><tr><th>Time</th><th>Event</th><th>Contact</th><th>Campaign</th><th>Step</th><th>From</th></tr></thead>
-          <tbody id="actRows"></tbody>
-        </table>
-      </div>
-      <div class="hint" style="margin-top:10px;font-size:11px;color:#9CA3AF">Opens are approximate (some mail apps auto-load or block images). Replies are exact — a reply also stops that contact's sequence automatically. Refreshes every 30s.</div>
-    </div>
+    
 
     <div class="howto">
       <b>How leads get these emails:</b> your HubSpot workflow (or the enroll button in the extension) puts a contact into a campaign. From then on this app sends each email at the right time, <b>from the lead's deal owner's Gmail</b>, with <code>{{firstname}}</code> filled in automatically. Every send appears on the contact's HubSpot timeline. Contacts who opt out or leave the campaign stop receiving emails immediately.
