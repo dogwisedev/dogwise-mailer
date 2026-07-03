@@ -1,22 +1,65 @@
-// api/activity.js — feed for the dashboard's Activity tab
-import { getEvents, getAllTimeStats } from '../lib/activity.js';
+// api/campaigns.js — dashboard API. GET list / POST upsert one / DELETE one.
+import { getCampaigns, saveCampaigns, storeConfigured } from '../lib/store.js';
+
+function authorized(req) {
+  const auth = req.headers['authorization'] || '';
+  return auth === `Bearer ${process.env.ADMIN_PASSWORD}` && process.env.ADMIN_PASSWORD;
+}
+
+function validCampaign(c) {
+  if (!c || typeof c.label !== 'string' || !c.label.trim()) return 'Campaign needs a name';
+  if (c.type === 'checklist') {
+    if (!c.firstEmail?.subject?.trim() || !c.firstEmail?.body?.trim()) return 'Checklist campaign needs the first email (subject + body)';
+    for (const [i, item] of (c.customItems || []).entries()) {
+      if (!item.label?.trim()) return `Custom check item ${i + 1} needs a name`;
+      if (!/^[a-z0-9_]+$/.test(item.property || '')) return `Custom check item "${item.label}": deal property internal name must be lowercase letters, numbers, underscores`;
+      if ((item.mode === 'equals' || item.mode === 'not_contains') && !String(item.value ?? '').trim()) return `Custom check item "${item.label}" needs a value for its rule`;
+      if (!item.block?.trim()) return `Custom check item "${item.label}" needs email text`;
+    }
+    return null; // blocks/intros may be filled iteratively
+  }
+  if (!Array.isArray(c.steps) || c.steps.length === 0) return 'Campaign needs at least one email';
+  if (c.sendAs && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.sendAs)) return 'Send-from must be a full email address (or blank for deal owner)';
+  for (const [i, s] of c.steps.entries()) {
+    if (!s.subject?.trim()) return `Email ${i + 1} needs a subject`;
+    if (!s.body?.trim()) return `Email ${i + 1} needs a body`;
+    if (i < c.steps.length - 1 && (!Number.isFinite(s.delayDaysAfter) || s.delayDaysAfter < 1)) {
+      return `Email ${i + 1} needs a wait of at least 1 day before the next email`;
+    }
+  }
+  return null;
+}
 
 export default async function handler(req, res) {
-  const auth = req.headers['authorization'] || '';
-  if (!(process.env.ADMIN_PASSWORD && auth === `Bearer ${process.env.ADMIN_PASSWORD}`)) {
-    return res.status(401).json({ error: 'unauthorized' });
+  if (!authorized(req)) return res.status(401).json({ error: 'Wrong password' });
+
+  const campaigns = await getCampaigns();
+
+  if (req.method === 'GET') {
+    return res.status(200).json({ campaigns, storeConfigured: storeConfigured() });
   }
 
-  const [events, allTime] = await Promise.all([getEvents(300), getAllTimeStats()]);
-  const now = Date.now();
-  const dayMs = 86400000;
-  const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+  if (req.method === 'POST') {
+    const { key, campaign } = req.body || {};
+    if (!key || !/^[a-z0-9_]+$/.test(key)) return res.status(400).json({ error: 'Campaign key must be lowercase letters, numbers, underscores' });
+    const problem = validCampaign(campaign);
+    if (problem) return res.status(400).json({ error: problem });
+    // Last step never has a delay (linear campaigns only)
+    if (campaign.type !== 'checklist') campaign.steps[campaign.steps.length - 1].delayDaysAfter = null;
+    campaigns[key] = campaign;
+    await saveCampaigns(campaigns);
+    return res.status(200).json({ ok: true, campaigns });
+  }
 
-  const count = (type, since) => events.filter(e => e.type === type && e.t >= since).length;
-  const stats = {
-    today: { sent: count('sent', startOfToday.getTime()), opened: count('opened', startOfToday.getTime()), replied: count('replied', startOfToday.getTime()), errors: count('error', startOfToday.getTime()) },
-    week: { sent: count('sent', now - 7 * dayMs), opened: count('opened', now - 7 * dayMs), replied: count('replied', now - 7 * dayMs), errors: count('error', now - 7 * dayMs) }
-  };
+  if (req.method === 'DELETE') {
+    const { key } = req.body || {};
+    if (key === 'welcome') return res.status(400).json({ error: 'The welcome email can be edited but not deleted' });
+    if (campaigns[key]?.type === 'checklist') return res.status(400).json({ error: 'Checklist campaigns can be edited but not deleted' });
+    if (!campaigns[key]) return res.status(404).json({ error: 'Campaign not found' });
+    delete campaigns[key];
+    await saveCampaigns(campaigns);
+    return res.status(200).json({ ok: true, campaigns });
+  }
 
-  return res.status(200).json({ events, stats, allTime });
+  return res.status(405).json({ error: 'Method not allowed' });
 }
