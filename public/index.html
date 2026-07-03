@@ -472,7 +472,7 @@ function selectCampaign(key) {
     : `Campaign key: ${key}`;
   $('campLabel').value = c.label;
   $('campSendAs').value = c.sendAs || '';
-  $('deleteBtn').style.display = key === 'welcome' ? 'none' : 'inline-block';
+  $('deleteBtn').style.display = (key === 'welcome' || c.type === 'checklist') ? 'none' : 'inline-block';
   renderList();
   renderSteps();
   if (actCache) renderCampSide(key); fetchActivity().then(() => renderCampSide(key));
