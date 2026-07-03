@@ -10,6 +10,12 @@ function validCampaign(c) {
   if (!c || typeof c.label !== 'string' || !c.label.trim()) return 'Campaign needs a name';
   if (c.type === 'checklist') {
     if (!c.firstEmail?.subject?.trim() || !c.firstEmail?.body?.trim()) return 'Checklist campaign needs the first email (subject + body)';
+    for (const [i, item] of (c.customItems || []).entries()) {
+      if (!item.label?.trim()) return `Custom check item ${i + 1} needs a name`;
+      if (!/^[a-z0-9_]+$/.test(item.property || '')) return `Custom check item "${item.label}": deal property internal name must be lowercase letters, numbers, underscores`;
+      if ((item.mode === 'equals' || item.mode === 'not_contains') && !String(item.value ?? '').trim()) return `Custom check item "${item.label}" needs a value for its rule`;
+      if (!item.block?.trim()) return `Custom check item "${item.label}" needs email text`;
+    }
     return null; // blocks/intros may be filled iteratively
   }
   if (!Array.isArray(c.steps) || c.steps.length === 0) return 'Campaign needs at least one email';

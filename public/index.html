@@ -320,6 +320,13 @@
         <div class="field"><label>Sign-off (every email)</label><textarea data-cl="signoff" style="min-height:70px"></textarea></div>
       </div>
 
+      <div class="step-card" style="margin-bottom:14px">
+        <div class="step-head"><h3>Custom check items</h3></div>
+        <div class="hint" style="margin-bottom:10px">Track anything with a deal property. The email text is included while the rule says the item is missing — and disappears once it's resolved.</div>
+        <div id="customItems"></div>
+        <button class="add-step" style="margin-left:0;width:100%" id="addCustomItemBtn">＋ Add check item</button>
+      </div>
+
       <div class="step-card">
         <div class="step-head"><h3>Cadence (days between reminders)</h3></div>
         <div class="row">
@@ -478,8 +485,46 @@ function setPath(obj, path, val) {
   o[keys[keys.length - 1]] = val;
 }
 
+function renderCustomItems() {
+  const c = campaigns[activeKey];
+  c.customItems = c.customItems || [];
+  const wrap = document.getElementById('customItems');
+  wrap.innerHTML = c.customItems.map((item, i) => `
+    <div style="border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:10px;background:var(--paper)">
+      <div class="row">
+        <div class="field"><label>Item name</label><input type="text" data-ci="${i}" data-f="label" value="${esc(item.label || '')}" placeholder="e.g. Food type"></div>
+        <div class="field"><label>Deal property internal name</label><input type="text" data-ci="${i}" data-f="property" value="${esc(item.property || '')}" placeholder="e.g. food_type" style="font-family:monospace;font-size:12px"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Missing when property...</label>
+          <select data-ci="${i}" data-f="mode" style="width:100%;padding:9px 11px;border:1.5px solid var(--line);border-radius:8px;font-size:13px;font-family:Inter;background:#fff">
+            <option value="empty" ${(item.mode||'empty')==='empty'?'selected':''}>is empty</option>
+            <option value="equals" ${item.mode==='equals'?'selected':''}>is exactly...</option>
+            <option value="not_contains" ${item.mode==='not_contains'?'selected':''}>does not contain...</option>
+          </select>
+        </div>
+        <div class="field" style="display:${(item.mode==='equals'||item.mode==='not_contains')?'block':'none'}" id="ciVal${i}"><label>Value</label><input type="text" data-ci="${i}" data-f="value" value="${esc(item.value || '')}" placeholder="e.g. false"></div>
+      </div>
+      <div class="field" style="margin-bottom:4px"><label>Email text while missing</label><textarea data-ci="${i}" data-f="block" style="min-height:55px">${esc(item.block || '')}</textarea></div>
+      <button class="btn btn-danger-ghost" data-ci-remove="${i}" style="padding:4px 0">Remove this item</button>
+    </div>`).join('') || '<div class="cs-empty" style="padding:6px 0">No custom items yet</div>';
+
+  wrap.querySelectorAll('[data-ci]').forEach(el => {
+    const i = +el.dataset.ci, f = el.dataset.f;
+    el.addEventListener('input', () => {
+      c.customItems[i][f] = el.value;
+      if (f === 'mode') renderCustomItems();
+    });
+    el.addEventListener('focus', () => { if (el.tagName === 'TEXTAREA') lastFocusedText = el; });
+  });
+  wrap.querySelectorAll('[data-ci-remove]').forEach(btn => {
+    btn.onclick = () => { c.customItems.splice(+btn.dataset.ciRemove, 1); renderCustomItems(); };
+  });
+}
+
 function renderChecklist() {
   const c = campaigns[activeKey];
+  renderCustomItems();
   document.querySelectorAll('#checklistEd [data-cl]').forEach(el => {
     el.value = getPath(c, el.dataset.cl) ?? '';
     el.oninput = () => {
@@ -731,6 +776,12 @@ async function loadActivity() {
     </tr>`;
   }).join('') || '<tr><td colspan="6" style="text-align:center;color:#9CA3AF;padding:24px">No activity yet — events appear here as emails send</td></tr>';
 }
+
+document.getElementById('addCustomItemBtn').onclick = () => {
+  const c = campaigns[activeKey];
+  (c.customItems = c.customItems || []).push({ label: '', property: '', mode: 'empty', value: '', block: '' });
+  renderCustomItems();
+};
 
 document.getElementById('activityBtn').onclick = showActivity;
 
