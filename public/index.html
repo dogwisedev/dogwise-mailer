@@ -447,8 +447,9 @@ function renderList() {
     const c = campaigns[key];
     const div = document.createElement('div');
     div.className = 'camp-item' + (key === activeKey ? ' active' : '');
-    div.innerHTML = (key === 'welcome' ? '<span class="pin">📌</span>' : '<span class="pin">✉️</span>')
-      + `<span>${esc(c.label)}</span><span class="n">${c.steps.length} email${c.steps.length > 1 ? 's' : ''}</span>`;
+    const badge = c.type === 'checklist' ? 'checklist' : `${(c.steps || []).length} email${(c.steps || []).length > 1 ? 's' : ''}`;
+    div.innerHTML = (key === 'welcome' ? '<span class="pin">📌</span>' : c.type === 'checklist' ? '<span class="pin">✅</span>' : '<span class="pin">✉️</span>')
+      + `<span>${esc(c.label)}</span><span class="n">${badge}</span>`;
     div.onclick = () => showEditor(key);
     el.appendChild(div);
   }
@@ -612,7 +613,9 @@ async function sendTest() {
   const as = $('testAs').value.trim(), to = $('testTo').value.trim();
   if (!as || !to) return toast('Fill in both addresses', 'err');
   localStorage.setItem('dw_test_as', as); localStorage.setItem('dw_test_to', to);
-  const step = campaigns[activeKey].steps[0];
+  const c0 = campaigns[activeKey];
+  const step = c0.type === 'checklist' ? (c0.firstEmail || {}) : (c0.steps || [])[0];
+  if (!step || !step.subject) { toast('Nothing to test yet — write the first email first', 'err'); $('testSendBtn').disabled = false; closeModal('testModal'); return; }
   const fill = s => s.replace(/\{\{\s*firstname\s*\}\}/gi, 'Alex').replace(/\{\{\s*lastname\s*\}\}/gi, 'Sample').replace(/\{\{\s*email\s*\}\}/gi, encodeURIComponent($('testTo').value.trim()))
     .replace(/\{\{\s*sender_firstname\s*\}\}/gi, 'Anita').replace(/\{\{\s*sender_lastname\s*\}\}/gi, 'Oliveira');
   $('testSendBtn').disabled = true;
@@ -636,7 +639,7 @@ $('saveBtn').onclick = save;
 $('newCampBtn').onclick = () => { $('newModal').style.display = 'flex'; $('newName').focus(); };
 $('createBtn').onclick = createCampaign;
 $('deleteBtn').onclick = deleteCampaign;
-$('addStepBtn').onclick = () => { campaigns[activeKey].steps.push({ delayDaysAfter: null, subject: '', body: 'Hi {{firstname}},\n\n' }); renderSteps(); };
+$('addStepBtn').onclick = () => { const cc = campaigns[activeKey]; if (cc.type === 'checklist') return; (cc.steps = cc.steps || []).push({ delayDaysAfter: null, subject: '', body: 'Hi {{firstname}},\n\n' }); renderSteps(); };
 $('testBtn').onclick = () => {
   $('testAs').value = localStorage.getItem('dw_test_as') || '';
   $('testTo').value = localStorage.getItem('dw_test_to') || '';
