@@ -290,6 +290,50 @@
     </div>
 
     <div class="leash" id="leash"></div>
+
+    <div id="checklistEd" style="display:none">
+      <div class="step-card" style="margin-bottom:14px">
+        <div class="step-head"><h3>First email — always sent on Closed Won</h3></div>
+        <div class="field"><label>Subject</label><input type="text" data-cl="firstEmail.subject"></div>
+        <div class="field"><label>Body (the Anita hello — checklist items get appended automatically if anything is missing)</label><textarea data-cl="firstEmail.body"></textarea></div>
+        <div class="field"><label>Checklist lead-in line</label><input type="text" data-cl="checklistLeadIn"></div>
+      </div>
+
+      <div class="step-card" style="margin-bottom:14px">
+        <div class="step-head"><h3>Reminder intros — picked by urgency (days until start date)</h3></div>
+        <div class="field"><label>😌 Relaxed (14+ days out) — subject</label><input type="text" data-cl="intros.relaxed.subject"></div>
+        <div class="field"><label>Relaxed — body</label><textarea data-cl="intros.relaxed.body" style="min-height:90px"></textarea></div>
+        <div class="field"><label>⏳ Approaching (3–13 days) — subject</label><input type="text" data-cl="intros.approaching.subject"></div>
+        <div class="field"><label>Approaching — body</label><textarea data-cl="intros.approaching.body" style="min-height:90px"></textarea></div>
+        <div class="field"><label>🔥 Urgent (0–2 days) — subject</label><input type="text" data-cl="intros.urgent.subject"></div>
+        <div class="field"><label>Urgent — body</label><textarea data-cl="intros.urgent.body" style="min-height:90px"></textarea></div>
+      </div>
+
+      <div class="step-card" style="margin-bottom:14px">
+        <div class="step-head"><h3>Checklist blocks — only included while that item is missing</h3></div>
+        <div class="field"><label>Client Intake Form</label><textarea data-cl="blocks.intake_form" style="min-height:60px"></textarea></div>
+        <div class="field"><label>Training Management Form</label><textarea data-cl="blocks.manager_form" style="min-height:60px"></textarea></div>
+        <div class="field"><label>Remaining balance (skipped + task for sender if no payment link on the deal)</label><textarea data-cl="blocks.balance" style="min-height:60px"></textarea></div>
+        <div class="field"><label>DHLPP</label><textarea data-cl="blocks.vaccine_dhlpp" style="min-height:50px"></textarea></div>
+        <div class="field"><label>Bordetella</label><textarea data-cl="blocks.vaccine_bordetella" style="min-height:50px"></textarea></div>
+        <div class="field"><label>Rabies</label><textarea data-cl="blocks.vaccine_rabies" style="min-height:50px"></textarea></div>
+        <div class="field"><label>Sign-off (every email)</label><textarea data-cl="signoff" style="min-height:70px"></textarea></div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-head"><h3>Cadence (days between reminders)</h3></div>
+        <div class="row">
+          <div class="field"><label>😌 Relaxed: every</label><input type="text" data-cl="cadence.relaxedDays"></div>
+          <div class="field"><label>⏳ Approaching: every</label><input type="text" data-cl="cadence.approachingDays"></div>
+          <div class="field"><label>🔥 Urgent: every</label><input type="text" data-cl="cadence.urgentDays"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>"Approaching" starts at ≤ days</label><input type="text" data-cl="cadence.approachingThreshold"></div>
+          <div class="field"><label>"Urgent" starts at ≤ days</label><input type="text" data-cl="cadence.urgentThreshold"></div>
+        </div>
+        <div class="hint">Extra tokens for this campaign: {{deal.program_start_date}}, {{deal.amount_outstanding}}, {{deal.remaining_balance_link}}, {{days_left}}</div>
+      </div>
+    </div>
     <button class="add-step" id="addStepBtn">＋ Add a follow-up email</button>
     <button class="btn btn-danger-ghost" id="deleteBtn" style="margin-top:16px">Delete this campaign</button>
 
@@ -426,8 +470,32 @@ function selectCampaign(key) {
   if (actCache) renderCampSide(key); fetchActivity().then(() => renderCampSide(key));
 }
 
+function getPath(obj, path) { return path.split('.').reduce((o, k) => (o || {})[k], obj); }
+function setPath(obj, path, val) {
+  const keys = path.split('.'); let o = obj;
+  for (const k of keys.slice(0, -1)) { if (typeof o[k] !== 'object' || o[k] === null) o[k] = {}; o = o[k]; }
+  o[keys[keys.length - 1]] = val;
+}
+
+function renderChecklist() {
+  const c = campaigns[activeKey];
+  document.querySelectorAll('#checklistEd [data-cl]').forEach(el => {
+    el.value = getPath(c, el.dataset.cl) ?? '';
+    el.oninput = () => {
+      const isNum = el.dataset.cl.startsWith('cadence.');
+      setPath(c, el.dataset.cl, isNum ? (parseInt(el.value) || 0) : el.value);
+    };
+    el.onfocus = () => { if (el.tagName === 'TEXTAREA' || el.type === 'text') lastFocusedText = el; };
+  });
+}
+
 function renderSteps() {
   const c = campaigns[activeKey];
+  const isChecklist = c.type === 'checklist';
+  document.getElementById('checklistEd').style.display = isChecklist ? 'block' : 'none';
+  document.getElementById('leash').style.display = isChecklist ? 'none' : 'block';
+  document.getElementById('addStepBtn').style.display = isChecklist ? 'none' : 'block';
+  if (isChecklist) { renderChecklist(); document.getElementById('leash').innerHTML = ''; return; }
   const leash = $('leash');
   leash.innerHTML = '';
   c.steps.forEach((step, i) => {

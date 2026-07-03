@@ -8,6 +8,10 @@ function authorized(req) {
 
 function validCampaign(c) {
   if (!c || typeof c.label !== 'string' || !c.label.trim()) return 'Campaign needs a name';
+  if (c.type === 'checklist') {
+    if (!c.firstEmail?.subject?.trim() || !c.firstEmail?.body?.trim()) return 'Checklist campaign needs the first email (subject + body)';
+    return null; // blocks/intros may be filled iteratively
+  }
   if (!Array.isArray(c.steps) || c.steps.length === 0) return 'Campaign needs at least one email';
   if (c.sendAs && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.sendAs)) return 'Send-from must be a full email address (or blank for deal owner)';
   for (const [i, s] of c.steps.entries()) {
@@ -34,8 +38,8 @@ export default async function handler(req, res) {
     if (!key || !/^[a-z0-9_]+$/.test(key)) return res.status(400).json({ error: 'Campaign key must be lowercase letters, numbers, underscores' });
     const problem = validCampaign(campaign);
     if (problem) return res.status(400).json({ error: problem });
-    // Last step never has a delay
-    campaign.steps[campaign.steps.length - 1].delayDaysAfter = null;
+    // Last step never has a delay (linear campaigns only)
+    if (campaign.type !== 'checklist') campaign.steps[campaign.steps.length - 1].delayDaysAfter = null;
     campaigns[key] = campaign;
     await saveCampaigns(campaigns);
     return res.status(200).json({ ok: true, campaigns });

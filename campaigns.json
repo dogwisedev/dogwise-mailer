@@ -4,9 +4,49 @@
     "steps": [
       {
         "delayDaysAfter": null,
-        "subject": "Welcome to Dogwise, {{firstname}}! 🐕",
-        "body": "Hi {{firstname}},\n\nThanks for reaching out to Dogwise Academy! I saw your inquiry come in and wanted to introduce myself personally — I'll be your point of contact here.\n\nOur board-and-train programs are built around one idea: real training happens in real life, not just in a classroom. I'd love to hear a bit more about your dog and what you're hoping to work on.\n\nDo you have 10 minutes this week for a quick call?\n\nBest,\n{{sender_firstname}}"
+        "subject": "Welcome to Dogwise, {{firstname}}! \ud83d\udc15",
+        "body": "Hi {{firstname}},\n\nThanks for reaching out to Dogwise Academy! I saw your inquiry come in and wanted to introduce myself personally \u2014 I'll be your point of contact here.\n\nOur board-and-train programs are built around one idea: real training happens in real life, not just in a classroom. I'd love to hear a bit more about your dog and what you're hoping to work on.\n\nDo you have 10 minutes this week for a quick call?\n\nBest,\n{{sender_firstname}}"
       }
     ]
+  },
+  "onboarding": {
+    "label": "Onboarding Checklist (Closed Won)",
+    "type": "checklist",
+    "sendAs": "anita@dogwiseacademy.com",
+    "cadence": {
+      "relaxedDays": 4,
+      "approachingDays": 2,
+      "urgentDays": 1,
+      "approachingThreshold": 13,
+      "urgentThreshold": 2
+    },
+    "firstEmail": {
+      "subject": "Welcome to Dogwise, {{firstname}}! Let's get everything ready \ud83c\udf89",
+      "body": "Hi {{firstname}},\n\nI'm Anita, and I'll be helping you get everything set up before the big day \u2014 {{deal.program_start_date}}. If you have any questions at any point, just reply to this email; I'm here to help.\n\nI'll also be sending you an invite to your private Signal chat group shortly, where you'll get updates and photos during training."
+    },
+    "checklistLeadIn": "Here's what we still need before {{deal.program_start_date}}:",
+    "intros": {
+      "relaxed": {
+        "subject": "Getting ready for {{deal.program_start_date}} \u2014 a few items left",
+        "body": "Hi {{firstname}},\n\nJust a friendly check-in from me \u2014 we're getting everything ready for the start date on {{deal.program_start_date}}, and there are still a couple of items on our list:"
+      },
+      "approaching": {
+        "subject": "{{days_left}} days to go \u2014 let's tick off the last items",
+        "body": "Hi {{firstname}},\n\nWe're only {{days_left}} days away from the start date ({{deal.program_start_date}}), and I want to make sure everything is squared away in time. Here's what's still outstanding:"
+      },
+      "urgent": {
+        "subject": "Important: needed before {{deal.program_start_date}}",
+        "body": "Hi {{firstname}},\n\nThe start date is almost here ({{deal.program_start_date}}) and we still need the items below. Without them we may not be able to start on time, so if there's anything I can do to help you get these sorted today, just reply and I'll jump on it:"
+      }
+    },
+    "blocks": {
+      "intake_form": "\ud83d\udccb Client Intake Form \u2014 takes about 5 minutes: [Complete your intake form](https://share.hsforms.com/1AvDdJ2T5Qgu57pqhCIoqiQd0qii?email={{email}})",
+      "manager_form": "\ud83d\udcdd Training Management Form \u2014 this tells your trainer everything about your pup: [Complete your training form](https://share.hsforms.com/1H02ktVe1QQaSl90DsQQ3bwd0qii?email={{email}})",
+      "balance": "\ud83d\udcb3 Remaining balance of {{deal.amount_outstanding}} \u2014 you can pay securely here:\n[[button:Pay remaining balance|{{deal.remaining_balance_link}}]]",
+      "vaccine_dhlpp": "\ud83d\udc89 DHLPP vaccination record \u2014 please have your vet send it over or reply to this email with a photo/scan.",
+      "vaccine_bordetella": "\ud83d\udc89 Bordetella vaccination record \u2014 please have your vet send it over or reply to this email with a photo/scan.",
+      "vaccine_rabies": "\ud83d\udc89 Rabies vaccination record \u2014 please have your vet send it over or reply to this email with a photo/scan."
+    },
+    "signoff": "Thanks so much \u2014 and if anything here is confusing or you've already sent something, just reply and let me know!\n\nWarmly,\n{{sender_firstname}}\nDogwise Academy"
   }
 }

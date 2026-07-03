@@ -47,6 +47,7 @@ export default async function handler(req, res) {
     const REPLY_WINDOW_MS = 14 * 86400000;
 
     async function checkReply(rec, { unenroll }) {
+      if (campaigns[rec.properties?.dw_campaign]?.type === 'checklist') return; // onboarding stops only when the checklist is done
       if (!(await shouldReplyCheck(rec.id, 4))) return; // each contact checked at most every 4h
       const lastSend = await getLastSend(rec.id);
       if (!lastSend) return;                                    // pre-tracking sends: no window, skip
