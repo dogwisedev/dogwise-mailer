@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dogwise Campaigns</title>
-  <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -223,6 +222,19 @@
   .cs-evt .when { color: #9CA3AF; font-size: 10.5px; white-space: nowrap; }
   .cs-empty { color: #9CA3AF; font-size: 12px; text-align: center; padding: 14px 0; }
   @media (max-width: 1150px) { #editorView { grid-template-columns: 1fr; } .camp-side { position: static; } }
+
+  .fmt-bar { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; padding: 6px 8px; background: var(--paper); border: 1.5px solid var(--line); border-bottom: none; border-radius: 8px 8px 0 0; }
+  .fmt-btn { border: none; background: none; cursor: pointer; font-size: 12.5px; padding: 4px 9px; border-radius: 6px; color: var(--ink); font-family: 'Inter'; font-weight: 600; }
+  .fmt-btn:hover { background: #fff; box-shadow: 0 1px 2px rgba(20,40,70,0.1); }
+  .fmt-sep { width: 1px; height: 16px; background: var(--line); margin: 0 3px; }
+  .fmt-bar + textarea { border-radius: 0 0 8px 8px !important; border-top: none !important; }
+  .emoji-pop { position: absolute; z-index: 40; background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 30px rgba(20,40,70,0.18); padding: 10px; display: grid; grid-template-columns: repeat(8, 30px); gap: 2px; }
+  .emoji-pop span { cursor: pointer; font-size: 17px; text-align: center; padding: 3px; border-radius: 6px; }
+  .emoji-pop span:hover { background: var(--paper); }
+  .preview-pane { border: 1.5px solid var(--line); border-radius: 8px; padding: 18px 20px; background: #fff; margin-top: 8px; }
+  .preview-pane .pv-subject { font-weight: 700; font-size: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--line); margin-bottom: 12px; }
+  .settings-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+  .settings-row input { flex: 1; padding: 8px 11px; border: 1.5px solid var(--line); border-radius: 8px; font-size: 12.5px; }
 </style>
 </head>
 <body>
@@ -245,6 +257,7 @@
     <div class="brand">Dogwise Campaigns<small>Emails send from each lead's deal owner</small></div>
     <div class="camp-list" id="campList"></div>
     <button class="side-btn" id="activityBtn" style="border-style:solid;margin-bottom:0">📊 Activity</button>
+    <button class="side-btn" id="settingsBtn" style="border-style:solid;margin-bottom:0;margin-top:8px">🔗 Sender links</button>
     <button class="side-btn" id="newCampBtn">＋ New campaign</button>
   </aside>
 
@@ -402,6 +415,21 @@
   </div>
 </div>
 
+<div class="modal-bg" id="settingsModal">
+  <div class="modal" style="width:560px">
+    <h3>Sender booking links</h3>
+    <div class="sub">Use the <b>{{sender_booking_link}}</b> token in any email — it becomes the sender's personal link. Senders without one get the fallback.</div>
+    <div id="senderLinkRows"></div>
+    <button class="btn btn-ghost" id="addSenderLinkBtn" style="margin-bottom:14px">＋ Add sender</button>
+    <div class="field"><label>Fallback link (used when the sender has no personal link)</label>
+      <input type="text" id="fallbackLink" placeholder="e.g. https://dogwiseacademy.com/contact"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('settingsModal')">Cancel</button>
+      <button class="btn btn-primary" id="saveSettingsBtn">Save links</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -444,6 +472,7 @@ async function login() {
   $('storeBanner').style.display = data.storeConfigured ? 'none' : 'block';
   $('gate').style.display = 'none';
   $('app').style.display = 'grid';
+  loadSettings();
   selectCampaign(campaigns['welcome'] ? 'welcome' : Object.keys(campaigns)[0]);
 }
 
@@ -521,11 +550,13 @@ function renderCustomItems() {
   wrap.querySelectorAll('[data-ci-remove]').forEach(btn => {
     btn.onclick = () => { c.customItems.splice(+btn.dataset.ciRemove, 1); renderCustomItems(); };
   });
+  enhanceTextareas(wrap);
 }
 
 function renderChecklist() {
   const c = campaigns[activeKey];
   renderCustomItems();
+  setTimeout(() => enhanceTextareas(document.getElementById('checklistEd')), 0);
   document.querySelectorAll('#checklistEd [data-cl]').forEach(el => {
     el.value = getPath(c, el.dataset.cl) ?? '';
     el.oninput = () => {
@@ -584,6 +615,7 @@ function renderSteps() {
     el.addEventListener('focus', e => { if (e.target.dataset.f) lastFocusedText = e.target; });
   });
   leash.querySelectorAll('input[type=number]').forEach(el => el.addEventListener('input', syncField));
+  enhanceTextareas(leash);
 }
 
 function syncField(e) {
@@ -777,6 +809,134 @@ async function loadActivity() {
     </tr>`;
   }).join('') || '<tr><td colspan="6" style="text-align:center;color:#9CA3AF;padding:24px">No activity yet — events appear here as emails send</td></tr>';
 }
+
+
+// ── Pro editor: client-side mirror of the server's email renderer (for live preview)
+function previewHtml(body) {
+  const escp = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  let x = escp(body);
+  x = x.replace(/\{\{\s*firstname\s*\}\}/gi,'Alex').replace(/\{\{\s*lastname\s*\}\}/gi,'Sample')
+       .replace(/\{\{\s*email\s*\}\}/gi,'alex%40example.com')
+       .replace(/\{\{\s*sender_firstname\s*\}\}/gi,'Anita').replace(/\{\{\s*sender_lastname\s*\}\}/gi,'Oliveira')
+       .replace(/\{\{\s*sender_booking_link\s*\}\}/gi, (appSettings.senderLinkFallback||'https://example.com/book'))
+       .replace(/\{\{\s*days_left\s*\}\}/gi,'5')
+       .replace(/\{\{\s*deal\.program_start_date\s*\}\}/gi,'Monday, August 17')
+       .replace(/\{\{\s*deal\.amount_outstanding\s*\}\}/gi,'$450.00')
+       .replace(/\{\{\s*deal\.remaining_balance_link\s*\}\}/gi,'https://pay.stripe.com/example')
+       .replace(/\{\{\s*deal\.dealname\s*\}\}/gi,'Sample Deal');
+  x = x.replace(/\[\[button:([^\|\]]+)\|([^\]]+)\]\]/g, (_,t,u)=>`<div style="margin:18px 0"><a href="${u.trim()}" target="_blank" style="background:#1B4F8A;color:#fff;padding:12px 26px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block;font-family:Arial">${t.trim()}</a></div>`);
+  x = x.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_,a,u)=>`<img src="${u.trim()}" alt="${a.trim()}" style="max-width:100%;border-radius:6px;margin:10px 0">`);
+  x = x.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_,t,u)=>`<a href="${u.trim()}" target="_blank" style="color:#1B4F8A">${t.trim()}</a>`);
+  x = x.replace(/\*\*([^*\n]+)\*\*/g,'<strong>$1</strong>').replace(/\*([^*\n]+)\*/g,'<em>$1</em>');
+  x = x.split(/\n{2,}/).map(p => {
+    if (p.trim()==='---') return '<hr style="border:none;border-top:1px solid #E3E9F0;margin:18px 0">';
+    const lines = p.split('\n');
+    if (lines.every(l => l.trim().startsWith('- ') || l.trim()==='')) {
+      return '<ul style="margin:0 0 14px;padding-left:22px">' + lines.filter(l=>l.trim().startsWith('- ')).map(l=>`<li style="margin:0 0 6px">${l.trim().slice(2)}</li>`).join('') + '</ul>';
+    }
+    return `<p style="margin:0 0 14px">${p.replace(/\n/g,'<br>')}</p>`;
+  }).join('');
+  return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#1E2A38;max-width:600px">${x}</div>`;
+}
+
+const EMOJIS = ['🐕','🐶','🦴','🐾','🎉','✅','☑️','📋','📝','💳','💉','📅','⏰','🏠','🚗','❤️','🙌','👋','😊','🌟','⭐','🔥','⚠️','📣','🎓','🍖','📸','💬','☀️','🎾','🛁','😴'];
+
+function wrapSelection(ta, before, after) {
+  const s = ta.selectionStart, e = ta.selectionEnd;
+  const sel = ta.value.slice(s, e) || 'text';
+  ta.value = ta.value.slice(0, s) + before + sel + after + ta.value.slice(e);
+  ta.dispatchEvent(new Event('input'));
+  ta.focus(); ta.selectionStart = s + before.length; ta.selectionEnd = s + before.length + sel.length;
+}
+function insertAtCursor(ta, text) {
+  const s = ta.selectionStart;
+  ta.value = ta.value.slice(0, s) + text + ta.value.slice(ta.selectionEnd);
+  ta.dispatchEvent(new Event('input'));
+  ta.focus(); ta.selectionStart = ta.selectionEnd = s + text.length;
+}
+function closeEmojiPops() { document.querySelectorAll('.emoji-pop').forEach(p => p.remove()); }
+
+/** Attach a formatting toolbar + preview toggle above every campaign-body textarea. */
+function enhanceTextareas(scope) {
+  scope.querySelectorAll('textarea').forEach(ta => {
+    if (ta.dataset.enhanced) return;
+    ta.dataset.enhanced = '1';
+    const bar = document.createElement('div');
+    bar.className = 'fmt-bar';
+    const mk = (label, title, fn) => { const b = document.createElement('button'); b.type='button'; b.className='fmt-btn'; b.textContent=label; b.title=title; b.onclick=(ev)=>{ev.preventDefault(); fn();}; return b; };
+    bar.appendChild(mk('B','Bold', () => wrapSelection(ta,'**','**')));
+    bar.appendChild(mk('I','Italic', () => wrapSelection(ta,'*','*')));
+    bar.appendChild(mk('• List','Bullet list', () => insertAtCursor(ta,'\n- ')));
+    bar.appendChild(mk('―','Divider line', () => insertAtCursor(ta,'\n\n---\n\n')));
+    const sep=document.createElement('div'); sep.className='fmt-sep'; bar.appendChild(sep);
+    bar.appendChild(mk('🔗','Link', () => wrapSelection(ta,'[','](https://your-link.com)')));
+    bar.appendChild(mk('🖼️','Image (paste a hosted image URL)', () => insertAtCursor(ta,'![photo](https://your-image-url.jpg)')));
+    bar.appendChild(mk('🔘','Button', () => insertAtCursor(ta,'[[button:Book a call|https://your-link.com]]')));
+    bar.appendChild(mk('📅','Sender booking link token', () => insertAtCursor(ta,'{{sender_booking_link}}')));
+    bar.appendChild(mk('😊','Emoji', () => {
+      closeEmojiPops();
+      const pop = document.createElement('div'); pop.className='emoji-pop';
+      EMOJIS.forEach(e => { const sp=document.createElement('span'); sp.textContent=e; sp.onclick=()=>{ insertAtCursor(ta,e); closeEmojiPops(); }; pop.appendChild(sp); });
+      bar.style.position='relative'; pop.style.top='34px'; pop.style.left='0'; bar.appendChild(pop);
+      setTimeout(()=>document.addEventListener('click', function h(ev){ if(!pop.contains(ev.target)){closeEmojiPops();document.removeEventListener('click',h);} }), 50);
+    }));
+    const sep2=document.createElement('div'); sep2.className='fmt-sep'; bar.appendChild(sep2);
+    const pvBtn = mk('👁 Preview','Toggle rendered preview', () => {
+      let pane = ta.parentElement.querySelector('.preview-pane');
+      if (pane) { pane.remove(); pvBtn.style.background=''; return; }
+      pane = document.createElement('div'); pane.className='preview-pane';
+      const render = () => pane.innerHTML = previewHtml(ta.value);
+      render();
+      ta.addEventListener('input', render);
+      ta.parentElement.appendChild(pane);
+      pvBtn.style.background='#fff';
+    });
+    bar.appendChild(pvBtn);
+    ta.parentElement.insertBefore(bar, ta);
+    ta.addEventListener('focus', () => { lastFocusedText = ta; });
+  });
+}
+
+// ── Sender links settings
+let appSettings = { senderLinks: {}, senderLinkFallback: '' };
+
+async function loadSettings() {
+  const res = await api('/api/settings');
+  if (res.ok) appSettings = await res.json();
+}
+
+function renderSettingsModal() {
+  const wrap = $('senderLinkRows');
+  const entries = Object.entries(appSettings.senderLinks || {});
+  if (entries.length === 0) entries.push(['','']);
+  wrap.innerHTML = entries.map(([em, url], i) => `
+    <div class="settings-row">
+      <input type="text" placeholder="person@dogwiseacademy.com" value="${esc(em)}" data-sl="${i}" data-f="email">
+      <input type="text" placeholder="https://calendly.com/..." value="${esc(url)}" data-sl="${i}" data-f="url">
+      <button class="icon-btn" data-sl-remove="${i}" title="Remove">✕</button>
+    </div>`).join('');
+  $('fallbackLink').value = appSettings.senderLinkFallback || '';
+  wrap.querySelectorAll('[data-sl-remove]').forEach(b => b.onclick = () => { b.parentElement.remove(); });
+}
+
+$('settingsBtn').onclick = async () => { await loadSettings(); renderSettingsModal(); $('settingsModal').style.display='flex'; };
+$('addSenderLinkBtn').onclick = () => {
+  const div = document.createElement('div'); div.className='settings-row';
+  div.innerHTML = `<input type="text" placeholder="person@dogwiseacademy.com" data-f="email"><input type="text" placeholder="https://calendly.com/..." data-f="url"><button class="icon-btn" title="Remove">✕</button>`;
+  div.querySelector('button').onclick = () => div.remove();
+  $('senderLinkRows').appendChild(div);
+};
+$('saveSettingsBtn').onclick = async () => {
+  const links = {};
+  $('senderLinkRows').querySelectorAll('.settings-row').forEach(row => {
+    const em = row.querySelector('[data-f="email"]').value.trim();
+    const url = row.querySelector('[data-f="url"]').value.trim();
+    if (em && url) links[em] = url;
+  });
+  const res = await api('/api/settings', { method:'POST', body: JSON.stringify({ senderLinks: links, senderLinkFallback: $('fallbackLink').value.trim() }) });
+  if (res.ok) { appSettings = await res.json(); closeModal('settingsModal'); toast('Sender links saved','ok'); }
+  else toast('Could not save links','err');
+};
 
 document.getElementById('addCustomItemBtn').onclick = () => {
   const c = campaigns[activeKey];

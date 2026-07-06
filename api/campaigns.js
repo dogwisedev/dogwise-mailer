@@ -54,6 +54,7 @@ export default async function handler(req, res) {
   if (req.method === 'DELETE') {
     const { key } = req.body || {};
     if (key === 'welcome') return res.status(400).json({ error: 'The welcome email can be edited but not deleted' });
+    if (campaigns[key]?.type === 'checklist') return res.status(400).json({ error: 'Checklist campaigns can be edited but not deleted' });
     if (!campaigns[key]) return res.status(404).json({ error: 'Campaign not found' });
     delete campaigns[key];
     await saveCampaigns(campaigns);

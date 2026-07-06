@@ -3,6 +3,7 @@
 //   GET /api/test-send?as=you@dogwiseacademy.com&to=you@dogwiseacademy.com&secret=<CRON_SECRET>
 import { sendAsOwner } from '../lib/gmail.js';
 import { renderHtml, toPlainText } from '../lib/util.js';
+import { bookingLinkFor } from '../lib/settings.js';
 
 export default async function handler(req, res) {
   const ok = (process.env.CRON_SECRET && req.query.secret === process.env.CRON_SECRET)
@@ -17,6 +18,11 @@ export default async function handler(req, res) {
   }
 
   const custom = req.method === 'POST' ? (req.body || {}) : {};
+  if (custom.body && custom.body.includes('{{sender_booking_link}}')) {
+    const link = (await bookingLinkFor(as)) || 'https://dogwiseacademy.com';
+    custom.body = custom.body.split('{{sender_booking_link}}').join(link);
+    if (custom.subject) custom.subject = custom.subject.split('{{sender_booking_link}}').join(link);
+  }
 
   try {
     const id = await sendAsOwner({
