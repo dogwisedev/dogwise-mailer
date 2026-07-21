@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dogwise Campaigns</title>
+<link rel="icon" type="image/png" href="/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -266,6 +267,7 @@
       ⚠️ No database connected yet — edits can't be saved. In Vercel: project → <b>Storage</b> tab → create an <b>Upstash Redis</b> database (free) → redeploy.
     </div>
 
+    <div id="draftNote" style="display:none;font-size:11.5px;color:#B45309;background:#FFF6E5;border:1px solid #F5DFB2;border-radius:8px;padding:8px 12px;margin-bottom:12px"></div>
     <div class="main-head">
       <div>
         <h2 id="campTitle">—</h2>
@@ -280,6 +282,11 @@
     <div id="activityView" style="display:none">
       <div class="stat-grid" id="statGrid"></div>
       <div class="act-table-wrap" id="campTotals" style="margin-bottom:14px;max-height:none"></div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+        <select id="actFilter" style="padding:7px 11px;border:1.5px solid var(--line);border-radius:8px;font-size:12.5px;font-family:Inter;background:#fff">
+          <option value="">All campaigns</option>
+        </select>
+      </div>
       <div class="act-table-wrap">
         <table class="act-table">
           <thead><tr><th>Time</th><th>Event</th><th>Contact</th><th>Campaign</th><th>Step</th><th>From</th></tr></thead>
@@ -479,8 +486,25 @@ async function login() {
 function renderList() {
   const el = $('campList');
   el.innerHTML = '';
-  const keys = Object.keys(campaigns).sort((a, b) => (a === 'welcome' ? -1 : b === 'welcome' ? 1 : a.localeCompare(b)));
-  for (const key of keys) {
+  const all = Object.keys(campaigns);
+  const groups = [
+    ['', all.filter(k => k === 'welcome')],
+    ['Checklists', all.filter(k => k !== 'welcome' && campaigns[k].type === 'checklist').sort()],
+    ['Campaigns', all.filter(k => k !== 'welcome' && campaigns[k].type !== 'checklist').sort()]
+  ];
+  const keys = [];
+  for (const [title, ks] of groups) {
+    if (ks.length === 0) continue;
+    if (title) {
+      const hd = document.createElement('div');
+      hd.style.cssText = 'font-size:10px;text-transform:uppercase;letter-spacing:0.8px;opacity:0.5;padding:12px 12px 4px;font-weight:600';
+      hd.textContent = title;
+      el.appendChild(hd);
+    }
+    keys.push(...ks);
+    for (const key of ks) renderCampItem(key);
+  }
+  function renderCampItem(key) {
     const c = campaigns[key];
     const div = document.createElement('div');
     div.className = 'camp-item' + (key === activeKey ? ' active' : '');
@@ -492,11 +516,43 @@ function renderList() {
   }
 }
 
+let draftTimer = null;
+function scheduleDraft() {
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(() => {
+    if (activeKey && campaigns[activeKey]) {
+      localStorage.setItem('dwm_draft_' + activeKey, JSON.stringify({ t: Date.now(), c: campaigns[activeKey] }));
+      const el = document.getElementById('draftNote');
+      if (el) { el.textContent = 'Draft auto-saved ' + new Date().toLocaleTimeString(undefined, {hour:'2-digit',minute:'2-digit'}) + ' — remember to Save changes to go live'; el.style.display = 'block'; }
+    }
+  }, 1500);
+}
+document.addEventListener('input', e => {
+  if (e.target.closest && (e.target.closest('#editorView'))) scheduleDraft();
+});
+
 function selectCampaign(key) {
   activeKey = key;
   const c = campaigns[key];
   if (!c) return;
-  $('campTitle').textContent = c.label;
+  // Offer an unsaved local draft if one exists and differs from the server copy
+  try {
+    const raw = localStorage.getItem('dwm_draft_' + key);
+    if (raw) {
+      const d = JSON.parse(raw);
+      if (JSON.stringify(d.c) !== JSON.stringify(c)) {
+        if (confirm('You have an unsaved draft of "' + (c.label || key) + '" from ' + new Date(d.t).toLocaleString() + '.\n\nOK = restore the draft   ·   Cancel = discard it and use the saved version')) {
+          campaigns[key] = d.c;
+        } else {
+          localStorage.removeItem('dwm_draft_' + key);
+        }
+      } else {
+        localStorage.removeItem('dwm_draft_' + key);
+      }
+    }
+  } catch {}
+  const c2 = campaigns[key];
+  $('campTitle').textContent = c2.label;
   $('campSub').textContent = key === 'welcome'
     ? 'Always on — every new lead gets this first. Edit freely; it can\'t be deleted.'
     : `Campaign key: ${key}`;
@@ -659,6 +715,8 @@ async function save() {
   $('saveBtn').disabled = false;
   if (!res.ok) return toast(data.error || 'Could not save', 'err');
   campaigns = data.campaigns;
+  localStorage.removeItem('dwm_draft_' + activeKey);
+  const dn = document.getElementById('draftNote'); if (dn) dn.style.display = 'none';
   toast('Saved — live within 30 minutes for due sends', 'ok');
   selectCampaign(activeKey);
 }
@@ -796,6 +854,17 @@ async function loadActivity() {
     ? `<table class="act-table"><thead><tr><th>Campaign — all time</th><th>Sent</th><th>Opened</th><th>Replied</th></tr></thead><tbody>${rows}</tbody></table>`
     : '';
 
+  lastEvents = events;
+  const sel = document.getElementById('actFilter');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">All campaigns</option>' + Object.keys(campaigns).map(k => `<option value="${k}" ${k===cur?'selected':''}>${esc(campaigns[k].label || k)}</option>`).join('');
+  renderActRows();
+}
+
+let lastEvents = [];
+function renderActRows() {
+  const f = document.getElementById('actFilter').value;
+  const events = f ? lastEvents.filter(e => e.campaign === f) : lastEvents;
   document.getElementById('actRows').innerHTML = events.map(e => {
     const d = new Date(e.t);
     const time = d.toLocaleDateString(undefined, {month:'short', day:'numeric'}) + ' ' + d.toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'});
@@ -824,9 +893,9 @@ function previewHtml(body) {
        .replace(/\{\{\s*deal\.amount_outstanding\s*\}\}/gi,'$450.00')
        .replace(/\{\{\s*deal\.remaining_balance_link\s*\}\}/gi,'https://pay.stripe.com/example')
        .replace(/\{\{\s*deal\.dealname\s*\}\}/gi,'Sample Deal');
-  x = x.replace(/\[\[button:([^\|\]]+)\|([^\]]+)\]\]/g, (_,t,u)=>`<div style="margin:18px 0"><a href="${u.trim()}" target="_blank" style="background:#1B4F8A;color:#fff;padding:12px 26px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block;font-family:Arial">${t.trim()}</a></div>`);
+  x = x.replace(/\[\[button:([^\|\]]*)\|([^\]]*)\]\]/g, (_,t,u)=> !u.trim() ? t.trim() : `<div style="margin:18px 0"><a href="${u.trim()}" target="_blank" style="background:#1B4F8A;color:#fff;padding:12px 26px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block;font-family:Arial">${t.trim()}</a></div>`);
   x = x.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_,a,u)=>`<img src="${u.trim()}" alt="${a.trim()}" style="max-width:100%;border-radius:6px;margin:10px 0">`);
-  x = x.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_,t,u)=>`<a href="${u.trim()}" target="_blank" style="color:#1B4F8A">${t.trim()}</a>`);
+  x = x.replace(/\[([^\]]+)\]\(([^)]*)\)/g, (_,t,u)=> u.trim() ? `<a href="${u.trim()}" target="_blank" style="color:#1B4F8A">${t.trim()}</a>` : t.trim());
   x = x.replace(/\*\*([^*\n]+)\*\*/g,'<strong>$1</strong>').replace(/\*([^*\n]+)\*/g,'<em>$1</em>');
   x = x.split(/\n{2,}/).map(p => {
     if (p.trim()==='---') return '<hr style="border:none;border-top:1px solid #E3E9F0;margin:18px 0">';
@@ -944,6 +1013,7 @@ document.getElementById('addCustomItemBtn').onclick = () => {
   renderCustomItems();
 };
 
+document.getElementById('actFilter').addEventListener('change', renderActRows);
 document.getElementById('activityBtn').onclick = showActivity;
 
 setInterval(async () => {
