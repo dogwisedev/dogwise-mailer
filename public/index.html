@@ -4,1025 +4,1118 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dogwise Campaigns</title>
-<link rel="icon" type="image/png" href="/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --navy: #1B4F8A;
-    --navy-deep: #123a68;
-    --ink: #1E2A38;
-    --paper: #F6F8FA;
-    --card: #FFFFFF;
-    --line: #E3E9F0;
-    --slate: #64748B;
-    --brass: #C9862B;
-    --brass-soft: #FBF3E4;
-    --green: #2E7D46;
-    --red: #C0392B;
-    --radius: 10px;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: 'Inter', -apple-system, sans-serif;
-    background: var(--paper);
-    color: var(--ink);
-    font-size: 14px;
-    min-height: 100vh;
-  }
-  h1, h2, h3, .brand { font-family: 'Sora', sans-serif; }
+:root{
+  --abyss:#0B1A30; --abyss-2:#0E2440; --navy:#1D4E89; --navy-700:#173F6E; --navy-100:#E7EEF7;
+  --ink:#16233B; --slate:#5B6B84; --mute:#8A97AC;
+  --paper:#EDEFF4; --card:#FFFFFF; --line:#E2E7EF; --line-2:#EAEEF4;
+  --brass:#C6892F; --brass-hi:#E7BE72; --brass-deep:#A66E1F; --brass-wash:#FBF4E6;
+  --sent:#2E7D46; --open:#C6892F; --reply:#2563A8; --err:#C0392B;
+  --r:12px; --r-sm:9px; --r-lg:18px;
+  --sh-1:0 1px 2px rgba(15,32,58,.06),0 1px 3px rgba(15,32,58,.05);
+  --sh-2:0 4px 14px rgba(15,32,58,.09),0 2px 6px rgba(15,32,58,.06);
+  --sh-3:0 18px 44px rgba(11,26,48,.20),0 8px 18px rgba(11,26,48,.12);
+  --sh-brass:0 6px 18px rgba(198,137,47,.28);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%}
+body{
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  color:var(--ink); background:var(--paper);
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  font-size:14px; line-height:1.5;
+}
+h1,h2,h3,h4,.disp{font-family:'Bricolage Grotesque','Inter',sans-serif;letter-spacing:-.01em;font-weight:700;margin:0}
+.mono{font-family:'JetBrains Mono',ui-monospace,monospace;font-variant-ligatures:none}
+button{font-family:inherit}
+::selection{background:var(--brass-hi);color:#3a2a06}
+input,textarea,select{font-family:inherit}
+a{color:var(--navy);text-decoration:none}
 
-  /* ---------- password gate ---------- */
-  .gate {
-    min-height: 100vh; display: flex; align-items: center; justify-content: center;
-    background: linear-gradient(160deg, var(--navy) 0%, var(--navy-deep) 100%);
-  }
-  .gate-card {
-    background: var(--card); border-radius: 14px; padding: 40px 36px; width: 360px;
-    box-shadow: 0 20px 60px rgba(10, 30, 60, 0.35);
-  }
-  .gate-card .paw { font-size: 34px; }
-  .gate-card h1 { font-size: 20px; margin: 12px 0 4px; }
-  .gate-card p { color: var(--slate); font-size: 13px; margin-bottom: 20px; }
-  .gate-card input {
-    width: 100%; padding: 11px 13px; border: 1.5px solid var(--line); border-radius: 8px;
-    font-size: 14px; outline: none; margin-bottom: 12px;
-  }
-  .gate-card input:focus { border-color: var(--navy); }
-  .gate-err { color: var(--red); font-size: 12px; margin: -6px 0 10px; display: none; }
+/* ── scrollbars ── */
+*{scrollbar-width:thin;scrollbar-color:#c3cdda transparent}
+*::-webkit-scrollbar{width:10px;height:10px}
+*::-webkit-scrollbar-thumb{background:#c7d0dd;border-radius:20px;border:3px solid transparent;background-clip:content-box}
+*::-webkit-scrollbar-thumb:hover{background:#a9b6c8;background-clip:content-box}
+.side ::-webkit-scrollbar-thumb{background:#28405e;background-clip:content-box}
 
-  /* ---------- app shell ---------- */
-  .app { display: none; grid-template-columns: 280px 1fr; min-height: 100vh; }
-  .side {
-    background: var(--navy); color: #fff; padding: 22px 0; display: flex; flex-direction: column;
-  }
-  .brand { padding: 0 22px 18px; font-size: 16px; font-weight: 700; letter-spacing: 0.2px; border-bottom: 1px solid rgba(255,255,255,0.14); }
-  .brand small { display: block; font-family: 'Inter'; font-weight: 400; font-size: 11px; opacity: 0.6; margin-top: 3px; }
-  .camp-list { flex: 1; overflow-y: auto; padding: 14px 12px; }
-  .camp-item {
-    padding: 11px 12px; border-radius: 8px; cursor: pointer; margin-bottom: 4px;
-    font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 9px;
-    transition: background 0.12s; border: 1px solid transparent;
-  }
-  .camp-item:hover { background: rgba(255,255,255,0.08); }
-  .camp-item.active { background: rgba(255,255,255,0.16); border-color: rgba(255,255,255,0.2); }
-  .camp-item .n { opacity: 0.55; font-size: 11px; margin-left: auto; }
-  .camp-item .pin { font-size: 12px; }
-  .side-btn {
-    margin: 12px 22px 0; padding: 10px; border-radius: 8px; border: 1.5px dashed rgba(255,255,255,0.4);
-    background: none; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Inter';
-  }
-  .side-btn:hover { background: rgba(255,255,255,0.08); }
+/* ═══════════════ LOGIN GATE ═══════════════ */
+.gate{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(1100px 650px at 25% -5%,#14335f 0%,#0b1c34 60%,#081525 100%);
+  z-index:60}
+.gate-card{width:380px;max-width:calc(100vw - 40px);background:var(--card);border-radius:var(--r-lg);
+  padding:38px 34px 30px;box-shadow:var(--sh-3);position:relative;overflow:hidden}
+.gate-card::before{content:"";position:absolute;left:0;right:0;top:0;height:4px;
+  background:linear-gradient(90deg,var(--brass-deep),var(--brass),var(--brass-hi),var(--brass))}
+.gate .mark{width:52px;height:52px;border-radius:15px;display:grid;place-items:center;margin-bottom:18px;
+  background:linear-gradient(150deg,var(--navy),var(--abyss-2));box-shadow:var(--sh-2);color:#fff}
+.gate .mark svg{width:28px;height:28px}
+.gate h1{font-size:24px;margin-bottom:6px}
+.gate p{color:var(--slate);font-size:13.5px;margin:0 0 22px}
+.gate input{width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:var(--r-sm);
+  font-size:14px;outline:none;transition:border-color .15s,box-shadow .15s}
+.gate input:focus{border-color:var(--navy);box-shadow:0 0 0 4px var(--navy-100)}
+.gate-err{display:none;color:var(--err);font-size:12.5px;margin:9px 2px 0}
+.gate .btn{width:100%;margin-top:16px;justify-content:center}
 
-  /* ---------- main ---------- */
-  .main { padding: 26px 34px 60px; max-width: 1340px; }
-  .main-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 22px; gap: 16px; }
-  .main-head h2 { font-size: 21px; }
-  .main-head .sub { color: var(--slate); font-size: 12.5px; margin-top: 4px; }
-  .head-actions { display: flex; gap: 8px; flex-shrink: 0; }
+/* ═══════════════ APP SHELL ═══════════════ */
+.app{display:none;height:100vh;grid-template-columns:288px 1fr}
+.app.on{display:grid}
 
-  .btn {
-    padding: 9px 16px; border-radius: 8px; border: none; cursor: pointer;
-    font-size: 13px; font-weight: 600; font-family: 'Inter'; transition: all 0.12s;
-  }
-  .btn-primary { background: var(--navy); color: #fff; }
-  .btn-primary:hover { background: var(--navy-deep); }
-  .btn-ghost { background: #fff; color: var(--ink); border: 1.5px solid var(--line); }
-  .btn-ghost:hover { border-color: var(--slate); }
-  .btn-danger-ghost { background: none; color: var(--red); border: none; font-size: 12.5px; }
-  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+/* ── sidebar ── */
+.side{background:linear-gradient(178deg,var(--abyss-2),var(--abyss));color:#dce6f2;
+  display:flex;flex-direction:column;min-height:0;position:relative;
+  box-shadow:inset -1px 0 0 rgba(255,255,255,.04)}
+.brand{padding:20px 20px 14px;display:flex;align-items:center;gap:11px}
+.brand .logo{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:0 0 auto;
+  
+  background:linear-gradient(150deg,var(--navy),#12325c);
+  box-shadow:0 2px 8px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.12);color:#fff}
+.brand .logo svg{width:19px;height:19px}
+.brand .wm{font-family:'Bricolage Grotesque';font-weight:800;font-size:17px;color:#fff;letter-spacing:-.02em;line-height:1}
+.brand .wm small{display:block;font-family:'Inter';font-weight:500;font-size:10.5px;color:#8ea6c4;margin-top:3px;letter-spacing:.01em}
 
-  .field { margin-bottom: 16px; }
-  .field label { display: block; font-size: 11.5px; font-weight: 600; color: var(--slate); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
-  .field input[type=text], .field textarea {
-    width: 100%; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 8px;
-    font-size: 13.5px; font-family: 'Inter'; outline: none; background: #fff; color: var(--ink);
-  }
-  .field input:focus, .field textarea:focus { border-color: var(--navy); }
-  .field textarea { min-height: 150px; resize: vertical; line-height: 1.55; }
+.search{margin:2px 16px 10px;position:relative}
+.search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:#6f88a8}
+.search input{width:100%;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.09);
+  color:#eaf1f9;border-radius:9px;padding:9px 11px 9px 32px;font-size:12.5px;outline:none;transition:.15s}
+.search input::placeholder{color:#7d93b1}
+.search input:focus{background:rgba(255,255,255,.09);border-color:rgba(198,137,47,.5)}
 
-  /* ---------- the leash: sequence timeline ---------- */
-  .leash { position: relative; padding-left: 30px; }
-  .leash::before {
-    content: ''; position: absolute; left: 9px; top: 26px; bottom: 26px; width: 0;
-    border-left: 2.5px dotted #B9C9DC;
-  }
-  .step-card {
-    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
-    padding: 20px 22px; margin-bottom: 0; position: relative;
-    box-shadow: 0 1px 3px rgba(20, 40, 70, 0.05);
-  }
-  .step-card::before {
-    content: ''; position: absolute; left: -27px; top: 24px; width: 14px; height: 14px;
-    background: var(--navy); border-radius: 50%; border: 3px solid var(--paper);
-  }
-  .step-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-  .step-head h3 { font-size: 14px; }
-  .step-tools { margin-left: auto; display: flex; gap: 2px; }
-  .icon-btn { border: none; background: none; cursor: pointer; font-size: 14px; padding: 4px 7px; border-radius: 6px; color: var(--slate); }
-  .icon-btn:hover { background: var(--paper); color: var(--ink); }
+.tree{flex:1;overflow-y:auto;padding:4px 10px 10px}
+.tree-sec{font-size:9.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:#6d84a4;
+  padding:14px 10px 6px;display:flex;align-items:center;gap:6px}
+.tree-sec .ln{flex:1;height:1px;background:rgba(255,255,255,.07)}
 
-  .wait-tag {
-    display: flex; align-items: center; gap: 8px; margin: 10px 0 10px -2px;
-    position: relative;
-  }
-  .wait-pill {
-    background: var(--brass-soft); border: 1px solid #EBD5AE; color: var(--brass);
-    font-size: 12px; font-weight: 600; padding: 5px 12px 5px 10px; border-radius: 999px;
-    display: inline-flex; align-items: center; gap: 6px;
-  }
-  .wait-pill input {
-    width: 42px; border: none; background: none; font: inherit; color: inherit;
-    text-align: center; outline: none; border-bottom: 1.5px solid #EBD5AE;
-  }
+.item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:9px;cursor:pointer;
+  color:#c4d3e6;font-size:13px;font-weight:500;margin-bottom:1px;position:relative;
+  transition:background .13s,color .13s;user-select:none;border:1px solid transparent}
+.item:hover{background:rgba(255,255,255,.06);color:#fff}
+.item.active{background:linear-gradient(90deg,rgba(198,137,47,.20),rgba(198,137,47,.07));color:#fff;
+  border-color:rgba(198,137,47,.28)}
+.item.active::before{content:"";position:absolute;left:-10px;top:8px;bottom:8px;width:3px;border-radius:3px;
+  background:linear-gradient(var(--brass-hi),var(--brass))}
+.item .ic{width:19px;height:19px;flex:0 0 auto;display:grid;place-items:center;color:#8fa8c6}
+.item.active .ic{color:var(--brass-hi)}
+.item .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .cnt{font-size:10.5px;font-weight:600;color:#7c93b2;background:rgba(255,255,255,.06);
+  padding:1px 7px;border-radius:20px;flex:0 0 auto}
+.item.active .cnt{color:#f0d9ad;background:rgba(198,137,47,.18)}
+.item.pinned .ic{color:var(--brass-hi)}
+.item.dragging{opacity:.4}
+.item.drop-hint{outline:2px dashed rgba(198,137,47,.7);outline-offset:-2px}
 
-  .tokens { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-  .token {
-    font-size: 11.5px; font-weight: 500; padding: 4px 10px; border-radius: 999px;
-    background: var(--paper); border: 1px solid var(--line); cursor: pointer; color: var(--navy);
-  }
-  .token:hover { border-color: var(--navy); }
+.folder{margin-bottom:2px}
+.folder-head{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:9px;cursor:pointer;
+  color:#aebfd6;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  transition:background .13s;user-select:none;border:1px solid transparent}
+.folder-head:hover{background:rgba(255,255,255,.05);color:#dce7f4}
+.folder-head .caret{width:13px;height:13px;transition:transform .18s;color:#7f96b5;flex:0 0 auto}
+.folder.collapsed .caret{transform:rotate(-90deg)}
+.folder.collapsed .folder-body{display:none}
+.folder-head .fic{width:15px;height:15px;color:var(--brass);flex:0 0 auto}
+.folder-head .fnm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.folder-head .fct{font-size:10px;font-weight:600;color:#6d84a4}
+.folder-head.drop-hint{background:rgba(198,137,47,.15);outline:2px dashed rgba(198,137,47,.6);outline-offset:-2px}
+.folder-head input.rename{background:#0a1a30;border:1px solid var(--brass);border-radius:6px;color:#fff;
+  font:inherit;font-size:11px;text-transform:none;letter-spacing:0;padding:2px 6px;width:100%}
+.folder-body{padding-left:8px;margin-left:6px;border-left:1px solid rgba(255,255,255,.06)}
 
-  .add-step {
-    margin-top: 14px; margin-left: -30px; width: calc(100% + 30px);
-    padding: 12px; border: 1.5px dashed var(--line); background: none; border-radius: var(--radius);
-    color: var(--slate); font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Inter';
-  }
-  .add-step:hover { border-color: var(--navy); color: var(--navy); }
+.side-foot{padding:10px 14px 14px;border-top:1px solid rgba(255,255,255,.07);display:flex;flex-direction:column;gap:6px}
+.nav-btn{display:flex;align-items:center;gap:10px;width:100%;background:transparent;border:none;color:#b7c8de;
+  font-size:12.5px;font-weight:600;padding:9px 10px;border-radius:9px;cursor:pointer;transition:.13s;text-align:left}
+.nav-btn svg{width:16px;height:16px;color:#8fa8c6}
+.nav-btn:hover{background:rgba(255,255,255,.06);color:#fff}
+.nav-btn.active{background:rgba(255,255,255,.08);color:#fff}
+.nav-btn.active svg{color:var(--brass-hi)}
+.nav-new{background:linear-gradient(150deg,var(--brass),var(--brass-deep));color:#fff;justify-content:center;
+  box-shadow:var(--sh-brass);margin-top:2px}
+.nav-new svg{color:#fff}
+.nav-new:hover{filter:brightness(1.06)}
+.nav-mini{display:flex;gap:6px}
+.nav-mini .nav-btn{background:rgba(255,255,255,.05);justify-content:center;flex:1;padding:8px}
 
-  .meta-row { display: flex; gap: 14px; margin-bottom: 20px; }
-  .meta-row .field { flex: 1; margin-bottom: 0; }
+/* ── main ── */
+.main{overflow-y:auto;min-height:0;position:relative}
+.wrap{max-width:1120px;margin:0 auto;padding:26px 34px 60px}
+.banner{background:#fff6e6;border:1px solid #f2ddb0;color:#8a5a12;border-radius:var(--r);
+  padding:11px 15px;margin-bottom:16px;font-size:12.5px;display:none}
+.banner code{background:#f4e6c8;padding:1px 5px;border-radius:4px}
+.draftnote{display:none;font-size:11.5px;color:var(--brass-deep);background:var(--brass-wash);
+  border:1px solid #f0dcae;border-radius:9px;padding:8px 13px;margin-bottom:14px}
 
-  .banner {
-    padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 18px; display: none;
-  }
-  .banner.warn { background: #FFF6E5; border: 1px solid #F5DFB2; color: #8A5A00; display: block; }
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:22px}
+.head .eyebrow{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--brass);margin-bottom:7px;display:flex;align-items:center;gap:7px}
+.head h2{font-size:27px;line-height:1.05}
+.head .sub{color:var(--slate);font-size:13px;margin-top:6px}
+.head-actions{display:flex;gap:9px;flex:0 0 auto}
 
-  .toast {
-    position: fixed; bottom: 24px; right: 24px; background: var(--ink); color: #fff;
-    padding: 12px 18px; border-radius: 9px; font-size: 13px; font-weight: 500;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.25); opacity: 0; transform: translateY(8px);
-    transition: all 0.25s; pointer-events: none; max-width: 380px;
-  }
-  .toast.show { opacity: 1; transform: none; }
-  .toast.ok { background: var(--green); }
-  .toast.err { background: var(--red); }
+.btn{display:inline-flex;align-items:center;gap:7px;border:none;border-radius:var(--r-sm);cursor:pointer;
+  font-size:13px;font-weight:600;padding:9px 16px;transition:transform .1s,box-shadow .15s,background .15s,filter .15s;white-space:nowrap}
+.btn:active{transform:translateY(1px)}
+.btn svg{width:15px;height:15px}
+.btn-primary{background:var(--navy);color:#fff;box-shadow:0 2px 8px rgba(29,78,137,.28)}
+.btn-primary:hover{background:var(--navy-700)}
+.btn-brass{background:linear-gradient(150deg,var(--brass),var(--brass-deep));color:#fff;box-shadow:var(--sh-brass)}
+.btn-brass:hover{filter:brightness(1.06)}
+.btn-ghost{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
+.btn-ghost:hover{border-color:#cfd8e6;background:#fbfcfe}
+.btn-danger-ghost{background:transparent;color:var(--err);border:1.5px solid transparent;padding:9px 6px;font-weight:600}
+.btn-danger-ghost:hover{background:#fdeeec}
 
-  /* ---------- modal ---------- */
-  .modal-bg {
-    display: none; position: fixed; inset: 0; background: rgba(15, 30, 50, 0.5);
-    align-items: center; justify-content: center; z-index: 50;
-  }
-  .modal {
-    background: #fff; border-radius: 14px; padding: 28px; width: 440px; max-width: 92vw;
-  }
-  .modal h3 { font-size: 16px; margin-bottom: 6px; }
-  .modal .sub { color: var(--slate); font-size: 12.5px; margin-bottom: 18px; }
-  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+/* ── fields ── */
+.field{margin-bottom:14px}
+.field label{display:block;font-size:11.5px;font-weight:600;color:var(--slate);margin-bottom:6px;letter-spacing:.01em}
+.field input[type=text],.field input:not([type]),.field textarea,.field select{
+  width:100%;padding:10px 13px;border:1.5px solid var(--line);border-radius:var(--r-sm);font-size:13.5px;
+  background:#fff;color:var(--ink);outline:none;transition:border-color .15s,box-shadow .15s}
+.field textarea{min-height:130px;resize:vertical;line-height:1.6}
+.field input:focus,.field textarea:focus,.field select:focus{border-color:var(--navy);box-shadow:0 0 0 4px var(--navy-100)}
+.field .hint{font-size:11px;color:var(--mute);margin-top:5px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 
-  .howto { color: var(--slate); font-size: 12.5px; line-height: 1.6; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 20px; margin-top: 30px; }
-  .howto b { color: var(--ink); }
-  .howto code { background: var(--paper); padding: 1px 6px; border-radius: 4px; font-size: 11.5px; }
+/* ── editor layout ── */
+.ed{display:grid;grid-template-columns:1fr 300px;gap:26px;align-items:start}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-1)}
+.meta{padding:18px 20px;margin-bottom:24px}
+.meta .row3{display:grid;grid-template-columns:1.4fr 1fr;gap:16px}
+.metabar{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center;margin-top:4px;padding-top:16px;border-top:1px dashed var(--line)}
+.wgroup{display:flex;align-items:center;gap:9px}
+.wgroup .wl{font-size:11.5px;font-weight:600;color:var(--slate)}
+.hourbox{display:flex;align-items:center;gap:6px;background:#fff;border:1.5px solid var(--line);border-radius:8px;padding:3px 4px}
+.hourbox select{border:none;background:transparent;font-size:13px;font-weight:600;color:var(--ink);padding:4px 3px;outline:none;cursor:pointer;-webkit-appearance:none;appearance:none;text-align:center}
+.hourbox .to{color:var(--mute);font-size:11px}
+.tzchip{font-size:10.5px;color:var(--slate);background:var(--navy-100);padding:3px 9px;border-radius:20px;font-weight:600}
+.folder-chip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--navy);
+  background:var(--navy-100);border:1px solid #d4e2f2;border-radius:20px;padding:4px 11px;cursor:pointer}
+.folder-chip svg{width:12px;height:12px}
 
-  @media (max-width: 760px) {
-    .app { grid-template-columns: 1fr; }
-    .side { flex-direction: row; align-items: center; overflow-x: auto; padding: 12px; }
-    .camp-list { display: flex; padding: 0 10px; }
-    .main { padding: 20px 16px; }
-  }
+/* switch */
+.switch{position:relative;display:inline-flex;align-items:center;gap:9px;cursor:pointer;user-select:none}
+.switch input{position:absolute;opacity:0;pointer-events:none}
+.switch .track{width:38px;height:22px;border-radius:20px;background:#cdd6e3;transition:background .2s;flex:0 0 auto;position:relative}
+.switch .track::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;
+  box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s}
+.switch input:checked+.track{background:var(--sent)}
+.switch input:checked+.track::after{transform:translateX(16px)}
+.switch .sl{font-size:11.5px;font-weight:600;color:var(--slate)}
 
-  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
-  .stat-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
-  .stat-card .big { font-family: 'Sora'; font-size: 24px; font-weight: 700; color: var(--navy); }
-  .stat-card .big.green { color: var(--green); }
-  .stat-card .big.amber { color: var(--brass); }
-  .stat-card .lbl { font-size: 10.5px; color: var(--slate); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
-  .stat-card .wk { font-size: 11px; color: #9CA3AF; margin-top: 6px; }
-  .act-table-wrap { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); overflow: auto; max-height: 480px; }
-  .act-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  .act-table th { text-align: left; padding: 10px 12px; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--slate); border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--card); }
-  .act-table td { padding: 8px 12px; border-bottom: 1px solid #F1F4F8; color: var(--ink); }
-  .pill { padding: 2px 9px; border-radius: 999px; font-size: 10.5px; font-weight: 600; }
-  .pill.sent { background: #E8F0FA; color: var(--navy); }
-  .pill.opened { background: #FBF3E4; color: var(--brass); }
-  .pill.replied { background: #E7F5EC; color: var(--green); }
-  .pill.error { background: #FDECEA; color: var(--red); }
+/* ═══ THE LEASH (signature) ═══ */
+.leash{position:relative;padding-left:56px}
+.leash::before{content:"";position:absolute;left:21px;top:26px;bottom:34px;width:0;
+  border-left:3px dashed #c9b58a;opacity:.9}
+.step{position:relative;margin-bottom:8px}
+.node{position:absolute;left:-56px;top:14px;width:44px;height:44px;border-radius:50%;
+  background:radial-gradient(circle at 34% 30%,#2a5a93,var(--navy) 60%,#153f70);
+  box-shadow:0 0 0 4px var(--paper),0 0 0 6px #d8c39a,0 6px 14px rgba(21,56,112,.35);
+  display:grid;place-items:center;z-index:2;transition:transform .16s,box-shadow .16s}
+.step:hover .node{transform:scale(1.06);box-shadow:0 0 0 4px var(--paper),0 0 0 6px var(--brass-hi),0 8px 18px rgba(21,56,112,.4)}
+.node .nn{font-family:'Bricolage Grotesque';font-weight:800;font-size:17px;color:#fff;line-height:1}
+.node .chg{position:absolute;right:-5px;bottom:-5px;width:21px;height:21px;border-radius:50%;background:#fff;
+  display:grid;place-items:center;box-shadow:0 1px 4px rgba(0,0,0,.22)}
+.node .chg svg{width:12px;height:12px}
+.node.sms .chg svg{color:var(--reply)} .node.email .chg svg{color:var(--navy)}
 
-  #editorView { display: grid; grid-template-columns: minmax(0, 860px) 340px; gap: 30px; align-items: start; }
-  .camp-side { position: sticky; top: 20px; }
-  .camp-side .cs-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; margin-bottom: 14px; }
-  .camp-side h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--slate); margin-bottom: 12px; }
-  .cs-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; }
-  .cs-stats .n { font-family: 'Sora'; font-size: 20px; font-weight: 700; color: var(--navy); }
-  .cs-stats .n.amber { color: var(--brass); } .cs-stats .n.green { color: var(--green); }
-  .cs-stats .l { font-size: 9.5px; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.4px; margin-top: 2px; }
-  .cs-feed { max-height: 380px; overflow-y: auto; }
-  .cs-evt { display: flex; gap: 8px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid #F1F4F8; font-size: 11.5px; }
-  .cs-evt:last-child { border-bottom: none; }
-  .cs-evt .who { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
-  .cs-evt .when { color: #9CA3AF; font-size: 10.5px; white-space: nowrap; }
-  .cs-empty { color: #9CA3AF; font-size: 12px; text-align: center; padding: 14px 0; }
-  @media (max-width: 1150px) { #editorView { grid-template-columns: 1fr; } .camp-side { position: static; } }
+.step-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-1);
+  padding:16px 18px;transition:box-shadow .16s,border-color .16s}
+.step:hover .step-card{box-shadow:var(--sh-2)}
+.step-top{display:flex;align-items:center;gap:12px;margin-bottom:13px}
+.step-top h3{font-size:14.5px;font-weight:700}
+.step-top .tag{font-size:10.5px;font-weight:600;color:var(--brass-deep);background:var(--brass-wash);
+  border:1px solid #f0dcae;padding:2px 9px;border-radius:20px}
+.step-tools{margin-left:auto;display:flex;gap:2px}
+.ibtn{border:none;background:transparent;cursor:pointer;width:28px;height:28px;border-radius:7px;color:var(--mute);
+  display:grid;place-items:center;transition:.12s}
+.ibtn:hover{background:var(--paper);color:var(--ink)}
+.ibtn svg{width:15px;height:15px}
 
-  .fmt-bar { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; padding: 6px 8px; background: var(--paper); border: 1.5px solid var(--line); border-bottom: none; border-radius: 8px 8px 0 0; }
-  .fmt-btn { border: none; background: none; cursor: pointer; font-size: 12.5px; padding: 4px 9px; border-radius: 6px; color: var(--ink); font-family: 'Inter'; font-weight: 600; }
-  .fmt-btn:hover { background: #fff; box-shadow: 0 1px 2px rgba(20,40,70,0.1); }
-  .fmt-sep { width: 1px; height: 16px; background: var(--line); margin: 0 3px; }
-  .fmt-bar + textarea { border-radius: 0 0 8px 8px !important; border-top: none !important; }
-  .emoji-pop { position: absolute; z-index: 40; background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 30px rgba(20,40,70,0.18); padding: 10px; display: grid; grid-template-columns: repeat(8, 30px); gap: 2px; }
-  .emoji-pop span { cursor: pointer; font-size: 17px; text-align: center; padding: 3px; border-radius: 6px; }
-  .emoji-pop span:hover { background: var(--paper); }
-  .preview-pane { border: 1.5px solid var(--line); border-radius: 8px; padding: 18px 20px; background: #fff; margin-top: 8px; }
-  .preview-pane .pv-subject { font-weight: 700; font-size: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--line); margin-bottom: 12px; }
-  .settings-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
-  .settings-row input { flex: 1; padding: 8px 11px; border: 1.5px solid var(--line); border-radius: 8px; font-size: 12.5px; }
+/* segmented channel control */
+.seg{display:inline-flex;background:var(--paper);border:1px solid var(--line);border-radius:9px;padding:3px;position:relative;gap:2px}
+.seg button{border:none;background:transparent;position:relative;z-index:2;font-size:12px;font-weight:600;color:var(--slate);
+  padding:6px 13px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:color .18s}
+.seg button svg{width:14px;height:14px}
+.seg button.on{color:#fff}
+.seg .glider{position:absolute;top:3px;bottom:3px;border-radius:6px;background:linear-gradient(150deg,var(--navy),var(--navy-700));
+  transition:transform .22s cubic-bezier(.4,0,.2,1),width .22s;z-index:1;box-shadow:0 2px 6px rgba(29,78,137,.3)}
+.seg.is-sms .glider{background:linear-gradient(150deg,#2f74c4,var(--reply))}
+
+.daypills{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:4px}
+.daypills .dl{font-size:11.5px;font-weight:600;color:var(--slate);margin-right:2px}
+.pill-toggle{border:1.5px solid var(--line);background:#fff;color:var(--slate);font-size:12px;font-weight:600;
+  padding:6px 13px;border-radius:20px;cursor:pointer;transition:.14s;display:inline-flex;align-items:center;gap:6px}
+.pill-toggle .dot{width:7px;height:7px;border-radius:50%;background:#c9d2df;transition:.14s}
+.pill-toggle.on{border-color:var(--navy);color:var(--navy);background:var(--navy-100)}
+.pill-toggle.on .dot{background:var(--navy)}
+
+.smsmeta{display:flex;align-items:center;justify-content:space-between;margin-top:9px;padding-top:11px;border-top:1px dashed var(--line)}
+.smsmeta .note{font-size:11px;color:var(--mute)}
+.smsmeta .count{font-size:11px;font-weight:600;color:var(--slate);font-family:'JetBrains Mono'}
+.smsmeta .count b{color:var(--navy)}
+
+/* wait buckle */
+.tie{position:relative;height:40px;margin-left:-56px;padding-left:56px;display:flex;align-items:center}
+.buckle{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(150deg,#fbf3e2,#f4e4c4);
+  border:1px solid #e4c993;color:var(--brass-deep);font-size:12px;font-weight:600;padding:6px 13px;border-radius:20px;
+  box-shadow:0 2px 6px rgba(198,137,47,.16);position:relative;z-index:2}
+.buckle svg{width:13px;height:13px}
+.buckle input{width:42px;border:1px solid #e0c58e;background:#fff;border-radius:6px;padding:3px 5px;text-align:center;
+  font-size:12px;font-weight:700;color:var(--brass-deep);font-family:'JetBrains Mono';outline:none}
+.tie::before{content:"";position:absolute;left:21px;top:0;bottom:0;width:0;border-left:3px dashed #c9b58a;opacity:.9}
+
+.add-step{display:inline-flex;align-items:center;gap:8px;margin-top:10px;background:#fff;border:1.5px dashed #ccd6e4;
+  color:var(--navy);font-size:13px;font-weight:600;padding:11px 18px;border-radius:var(--r-sm);cursor:pointer;transition:.14s}
+.add-step:hover{border-color:var(--navy);background:var(--navy-100)}
+.add-step svg{width:16px;height:16px}
+.add-row{display:flex;gap:9px;margin-top:12px}
+
+/* tokens + fmt */
+.tokens{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.token{font-family:'JetBrains Mono';font-size:11px;background:var(--paper);border:1px solid var(--line);color:var(--navy);
+  padding:3px 9px;border-radius:7px;cursor:pointer;transition:.12s}
+.token:hover{border-color:var(--navy);background:var(--navy-100)}
+.fmt-bar{display:flex;flex-wrap:wrap;align-items:center;gap:3px;background:var(--paper);border:1px solid var(--line);
+  border-bottom:none;border-radius:8px 8px 0 0;padding:5px 7px;margin-bottom:-1px}
+.fmt-btn{border:none;background:transparent;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--slate);
+  padding:4px 8px;border-radius:6px;transition:.12s;line-height:1}
+.fmt-btn:hover{background:#fff;color:var(--ink);box-shadow:var(--sh-1)}
+.fmt-sep{width:1px;height:16px;background:var(--line);margin:0 3px}
+.fmt-bar+textarea{border-radius:0 0 8px 8px}
+.preview-pane{margin-top:12px;border:1px solid var(--line);border-radius:9px;padding:16px;background:#fdfdfe}
+.emoji-pop{position:absolute;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:var(--sh-3);
+  padding:8px;display:grid;grid-template-columns:repeat(8,1fr);gap:2px;z-index:40;width:280px}
+.emoji-pop span{cursor:pointer;font-size:18px;padding:4px;border-radius:6px;text-align:center}
+.emoji-pop span:hover{background:var(--paper)}
+
+/* ── right rail ── */
+.rail{display:flex;flex-direction:column;gap:16px;position:sticky;top:26px}
+.rail-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-1);padding:16px 17px}
+.rail-card h4{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--slate);margin-bottom:13px}
+.rstats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
+.rstats .n{font-family:'Bricolage Grotesque';font-weight:800;font-size:23px;color:var(--ink);line-height:1}
+.rstats .n.a{color:var(--open)} .rstats .n.g{color:var(--sent)}
+.rstats .l{font-size:10px;font-weight:600;color:var(--mute);text-transform:uppercase;letter-spacing:.05em;margin-top:5px}
+.feed{display:flex;flex-direction:column;gap:2px;max-height:340px;overflow-y:auto}
+.evt{display:flex;align-items:center;gap:8px;padding:7px 4px;border-bottom:1px solid var(--line-2);font-size:12px}
+.evt:last-child{border-bottom:none}
+.evt .who{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink)}
+.evt .when{color:var(--mute);font-size:10.5px;white-space:nowrap}
+.empty{color:var(--mute);font-size:12px;text-align:center;padding:22px 8px}
+
+.pill{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:capitalize;letter-spacing:.02em}
+.pill.sent{background:#e7f3ec;color:var(--sent)}
+.pill.opened{background:var(--brass-wash);color:var(--brass-deep)}
+.pill.replied{background:#e6effc;color:var(--reply)}
+.pill.error{background:#fdeeec;color:var(--err)}
+.pill.skipped{background:#eef1f5;color:var(--slate)}
+.chan{font-size:9px;font-weight:700;padding:1px 6px;border-radius:5px;text-transform:uppercase;letter-spacing:.04em}
+.chan.email{background:var(--navy-100);color:var(--navy)}
+.chan.sms{background:#e6effc;color:var(--reply)}
+
+/* ── activity view ── */
+.statgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.statcard{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-1);padding:17px 18px;position:relative;overflow:hidden}
+.statcard::after{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--navy)}
+.statcard.a::after{background:var(--open)} .statcard.g::after{background:var(--sent)} .statcard.e::after{background:var(--err)}
+.statcard .big{font-family:'Bricolage Grotesque';font-weight:800;font-size:34px;line-height:1;color:var(--ink)}
+.statcard.a .big{color:var(--open)} .statcard.g .big{color:var(--sent)} .statcard.e .big{color:var(--err)}
+.statcard .lbl{font-size:12px;font-weight:600;color:var(--ink);margin-top:8px}
+.statcard .wk{font-size:11px;color:var(--mute);margin-top:3px}
+.tablewrap{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-1);overflow:hidden;margin-bottom:14px}
+table.tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+table.tbl th{text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--mute);
+  padding:11px 15px;background:#f8fafc;border-bottom:1px solid var(--line)}
+table.tbl td{padding:11px 15px;border-bottom:1px solid var(--line-2);color:var(--ink);vertical-align:middle}
+table.tbl tr:last-child td{border-bottom:none}
+table.tbl tr:hover td{background:#fafbfd}
+.selectbox{padding:8px 12px;border:1.5px solid var(--line);border-radius:8px;font-size:12.5px;background:#fff;color:var(--ink);outline:none;cursor:pointer}
+
+/* ── settings view ── */
+.setgrid{display:flex;flex-direction:column;gap:20px;max-width:820px}
+.setcard{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-1);padding:22px 24px}
+.setcard h3{font-size:16px;margin-bottom:5px}
+.setcard .sub{color:var(--slate);font-size:12.5px;margin-bottom:18px}
+.setcard .sub code,.howto code{font-family:'JetBrains Mono';background:var(--paper);padding:1px 6px;border-radius:5px;font-size:11.5px;color:var(--navy)}
+.srow{display:grid;grid-template-columns:1fr 1fr auto;gap:9px;margin-bottom:9px;align-items:center}
+.numrow{display:grid;grid-template-columns:1.2fr 1fr 1.4fr auto;gap:9px;margin-bottom:9px;align-items:center}
+.srow input,.numrow input,.numrow select{padding:9px 12px;border:1.5px solid var(--line);border-radius:8px;font-size:13px;outline:none;background:#fff;transition:.15s;width:100%}
+.srow input:focus,.numrow input:focus,.numrow select:focus{border-color:var(--navy);box-shadow:0 0 0 3px var(--navy-100)}
+.numgrp{border:1px solid var(--line);border-radius:11px;padding:14px 15px;margin-bottom:14px;background:#fbfcfe}
+.numgrp .gh{display:flex;align-items:center;gap:9px;margin-bottom:12px}
+.numgrp .gh .av{width:28px;height:28px;border-radius:8px;background:linear-gradient(150deg,var(--navy),var(--abyss-2));
+  color:#fff;display:grid;place-items:center;font-weight:700;font-size:12px;font-family:'Bricolage Grotesque'}
+.numgrp .gh .nm{font-weight:700;font-size:13.5px}
+.numgrp .gh .em{font-size:11px;color:var(--mute);font-family:'JetBrains Mono'}
+.tabs{display:flex;gap:4px;background:var(--paper);padding:4px;border-radius:10px;margin-bottom:20px;width:max-content}
+.tabs button{border:none;background:transparent;font-size:12.5px;font-weight:600;color:var(--slate);padding:8px 16px;border-radius:7px;cursor:pointer;transition:.14s}
+.tabs button.on{background:#fff;color:var(--ink);box-shadow:var(--sh-1)}
+
+.howto{margin-top:22px;background:linear-gradient(160deg,#fff,#fbfcfe);border:1px solid var(--line);border-radius:var(--r);
+  padding:16px 18px;font-size:12.5px;color:var(--slate);line-height:1.65}
+.howto b{color:var(--ink)}
+
+/* ── modals ── */
+.modal-bg{position:fixed;inset:0;background:rgba(11,26,48,.5);backdrop-filter:blur(3px);display:none;
+  align-items:center;justify-content:center;z-index:50;animation:fade .16s ease}
+.modal{background:var(--card);border-radius:var(--r-lg);box-shadow:var(--sh-3);width:460px;max-width:calc(100vw - 32px);
+  padding:26px 26px 22px;animation:pop .2s cubic-bezier(.34,1.4,.5,1)}
+.modal h3{font-size:19px;margin-bottom:6px}
+.modal .sub{color:var(--slate);font-size:13px;margin-bottom:18px}
+.modal-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:20px}
+
+/* ── context menu ── */
+.ctx{position:fixed;background:#fff;border:1px solid var(--line);border-radius:11px;box-shadow:var(--sh-3);
+  padding:6px;z-index:70;min-width:184px;display:none;animation:pop .13s ease}
+.ctx .ci{display:flex;align-items:center;gap:9px;padding:8px 11px;border-radius:7px;font-size:12.5px;font-weight:500;
+  color:var(--ink);cursor:pointer;position:relative;white-space:nowrap}
+.ctx .ci:hover{background:var(--paper)}
+.ctx .ci svg{width:15px;height:15px;color:var(--slate)}
+.ctx .ci.danger{color:var(--err)} .ctx .ci.danger svg{color:var(--err)}
+.ctx .ci.has-sub::after{content:"›";margin-left:auto;color:var(--mute);font-size:15px}
+.ctx .sub{position:absolute;left:100%;top:0;margin-left:2px;background:#fff;border:1px solid var(--line);
+  border-radius:11px;box-shadow:var(--sh-3);padding:6px;min-width:170px;display:none;max-height:280px;overflow-y:auto}
+.ctx .ci.has-sub:hover .sub{display:block}
+.ctx .sep{height:1px;background:var(--line-2);margin:5px 4px}
+
+/* ── toast ── */
+.toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--ink);color:#fff;
+  padding:12px 20px;border-radius:11px;font-size:13px;font-weight:500;box-shadow:var(--sh-3);z-index:80;opacity:0;
+  transition:transform .28s cubic-bezier(.34,1.3,.5,1),opacity .28s;display:flex;align-items:center;gap:9px;max-width:90vw}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+.toast.ok{background:#12402a} .toast.err{background:#5f1a13}
+.toast svg{width:16px;height:16px;flex:0 0 auto}
+
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes pop{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.stagger>*{animation:rise .4s ease backwards}
+.stagger>*:nth-child(1){animation-delay:.02s}.stagger>*:nth-child(2){animation-delay:.06s}
+.stagger>*:nth-child(3){animation-delay:.10s}.stagger>*:nth-child(4){animation-delay:.14s}
+.stagger>*:nth-child(5){animation-delay:.18s}.stagger>*:nth-child(n+6){animation-delay:.22s}
+.side{animation:slideL .3s ease}@keyframes slideL{from{transform:translateX(-14px);opacity:.4}to{transform:none;opacity:1}}
+
+:focus-visible{outline:2px solid var(--brass);outline-offset:2px;border-radius:4px}
+
+@media (max-width:1080px){.ed{grid-template-columns:1fr}.rail{position:static}.statgrid{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:760px){.app.on{grid-template-columns:1fr}.side{display:none}.wrap{padding:18px 16px 50px}.row,.meta .row3{grid-template-columns:1fr}.head{flex-direction:column;align-items:flex-start}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
 
-<!-- Password gate -->
+<!-- ══ LOGIN ══ -->
 <div class="gate" id="gate">
   <div class="gate-card">
-    <div class="paw">🐾</div>
+    <div class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12s2.5-6 8-6 8 6 8 6-2.5 6-8 6-8-6-8-6Z"/><circle cx="12" cy="12" r="2.5"/></svg></div>
     <h1>Dogwise Campaigns</h1>
-    <p>Enter the team password to manage email campaigns.</p>
+    <p>Enter the team password to manage sequences.</p>
     <input type="password" id="pw" placeholder="Password" autocomplete="current-password">
     <div class="gate-err" id="gateErr">That password didn't work — try again.</div>
-    <button class="btn btn-primary" style="width:100%" id="loginBtn">Open dashboard</button>
+    <button class="btn btn-brass" id="loginBtn">Open dashboard</button>
   </div>
 </div>
 
-<!-- App -->
+<!-- ══ APP ══ -->
 <div class="app" id="app">
   <aside class="side">
-    <div class="brand">Dogwise Campaigns<small>Emails send from each lead's deal owner</small></div>
-    <div class="camp-list" id="campList"></div>
-    <button class="side-btn" id="activityBtn" style="border-style:solid;margin-bottom:0">📊 Activity</button>
-    <button class="side-btn" id="settingsBtn" style="border-style:solid;margin-bottom:0;margin-top:8px">🔗 Sender links</button>
-    <button class="side-btn" id="newCampBtn">＋ New campaign</button>
+    <div class="brand">
+      <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12s2.5-6 8-6 8 6 8 6-2.5 6-8 6-8-6-8-6Z"/><circle cx="12" cy="12" r="2.3"/></svg></div>
+      <div class="wm">Dogwise<small>Sequence studio</small></div>
+    </div>
+    <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input id="search" placeholder="Search sequences…" autocomplete="off"></div>
+    <div class="tree" id="tree"></div>
+    <div class="side-foot">
+      <button class="nav-btn" id="activityBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 14 3-4 4 3 5-7"/></svg>Activity</button>
+      <button class="nav-btn" id="settingsBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.17V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15H4a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 11 4.6V4a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 2.82 1.17l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 21 11h.6a2 2 0 1 1 0 4Z"/></svg>Numbers &amp; links</button>
+      <div class="nav-mini">
+        <button class="nav-btn" id="newFolderBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-7.9a1 1 0 0 1-.8-.4l-1.1-1.4a1 1 0 0 0-.8-.4H4a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1Z"/><path d="M12 11v5M9.5 13.5h5"/></svg>Folder</button>
+        <button class="nav-btn nav-new" id="newCampBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Sequence</button>
+      </div>
+    </div>
   </aside>
 
   <main class="main">
-    <div class="banner warn" id="storeBanner" style="display:none">
-      ⚠️ No database connected yet — edits can't be saved. In Vercel: project → <b>Storage</b> tab → create an <b>Upstash Redis</b> database (free) → redeploy.
-    </div>
+   <div class="wrap">
+    <div class="banner" id="storeBanner">⚠️ No database connected — edits can't be saved. In Vercel: project → <b>Storage</b> → add <b>Upstash Redis</b> → redeploy.</div>
+    <div class="draftnote" id="draftNote"></div>
 
-    <div id="draftNote" style="display:none;font-size:11.5px;color:#B45309;background:#FFF6E5;border:1px solid #F5DFB2;border-radius:8px;padding:8px 12px;margin-bottom:12px"></div>
-    <div class="main-head">
+    <div class="head">
       <div>
+        <div class="eyebrow" id="eyebrow"><span id="eyebrowText">Sequence</span></div>
         <h2 id="campTitle">—</h2>
         <div class="sub" id="campSub"></div>
       </div>
-      <div class="head-actions">
-        <button class="btn btn-ghost" id="testBtn">Send me a test</button>
-        <button class="btn btn-primary" id="saveBtn">Save changes</button>
+      <div class="head-actions" id="headActions">
+        <button class="btn btn-ghost" id="testBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>Send me a test</button>
+        <button class="btn btn-brass" id="saveBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>Save changes</button>
       </div>
     </div>
 
+    <!-- ACTIVITY -->
     <div id="activityView" style="display:none">
-      <div class="stat-grid" id="statGrid"></div>
-      <div class="act-table-wrap" id="campTotals" style="margin-bottom:14px;max-height:none"></div>
-      <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
-        <select id="actFilter" style="padding:7px 11px;border:1.5px solid var(--line);border-radius:8px;font-size:12.5px;font-family:Inter;background:#fff">
-          <option value="">All campaigns</option>
-        </select>
+      <div class="statgrid" id="statGrid"></div>
+      <div id="campTotals" style="margin-bottom:14px"></div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:10px"><select class="selectbox" id="actFilter"><option value="">All sequences</option></select></div>
+      <div class="tablewrap">
+        <table class="tbl"><thead><tr><th>Time</th><th>Event</th><th>Contact</th><th>Sequence</th><th>Step</th><th>From</th></tr></thead><tbody id="actRows"></tbody></table>
       </div>
-      <div class="act-table-wrap">
-        <table class="act-table">
-          <thead><tr><th>Time</th><th>Event</th><th>Contact</th><th>Campaign</th><th>Step</th><th>From</th></tr></thead>
-          <tbody id="actRows"></tbody>
-        </table>
-      </div>
-      <div class="hint" style="margin-top:10px;font-size:11px;color:#9CA3AF">Opens are approximate (some mail apps auto-load or block images). Replies are exact — a reply also stops that contact's sequence automatically. Refreshes every 30s.</div>
+      <div class="howto" style="margin-top:12px">Opens are approximate — some mail apps auto-load or block the pixel. Replies are exact, and a reply (email <em>or</em> text) also stops that contact's sequence automatically. Refreshes every 30s.</div>
     </div>
 
-    <div id="editorView">
-    <div class="ed-main">
-    <div class="meta-row">
-      <div class="field">
-        <label>Campaign name</label>
-        <input type="text" id="campLabel" placeholder="e.g. Summer Re-engagement">
-      </div>
-      <div class="field">
-        <label>Send from (optional)</label>
-        <input type="text" id="campSendAs" placeholder="Blank = each lead's deal owner">
-        <div class="hint">Enter a @dogwiseacademy.com address to send this whole campaign from one person</div>
-      </div>
-    </div>
-
-    <div class="leash" id="leash"></div>
-
-    <div id="checklistEd" style="display:none">
-      <div class="step-card" style="margin-bottom:14px">
-        <div class="step-head"><h3>First email — always sent on Closed Won</h3></div>
-        <div class="field"><label>Subject</label><input type="text" data-cl="firstEmail.subject"></div>
-        <div class="field"><label>Body (the Anita hello — checklist items get appended automatically if anything is missing)</label><textarea data-cl="firstEmail.body"></textarea></div>
-        <div class="field"><label>Checklist lead-in line</label><input type="text" data-cl="checklistLeadIn"></div>
-      </div>
-
-      <div class="step-card" style="margin-bottom:14px">
-        <div class="step-head"><h3>Reminder intros — picked by urgency (days until start date)</h3></div>
-        <div class="field"><label>😌 Relaxed (14+ days out) — subject</label><input type="text" data-cl="intros.relaxed.subject"></div>
-        <div class="field"><label>Relaxed — body</label><textarea data-cl="intros.relaxed.body" style="min-height:90px"></textarea></div>
-        <div class="field"><label>⏳ Approaching (3–13 days) — subject</label><input type="text" data-cl="intros.approaching.subject"></div>
-        <div class="field"><label>Approaching — body</label><textarea data-cl="intros.approaching.body" style="min-height:90px"></textarea></div>
-        <div class="field"><label>🔥 Urgent (0–2 days) — subject</label><input type="text" data-cl="intros.urgent.subject"></div>
-        <div class="field"><label>Urgent — body</label><textarea data-cl="intros.urgent.body" style="min-height:90px"></textarea></div>
-      </div>
-
-      <div class="step-card" style="margin-bottom:14px">
-        <div class="step-head"><h3>Checklist blocks — only included while that item is missing</h3></div>
-        <div class="field"><label>Client Intake Form</label><textarea data-cl="blocks.intake_form" style="min-height:60px"></textarea></div>
-        <div class="field"><label>Training Management Form</label><textarea data-cl="blocks.manager_form" style="min-height:60px"></textarea></div>
-        <div class="field"><label>Remaining balance (skipped + task for sender if no payment link on the deal)</label><textarea data-cl="blocks.balance" style="min-height:60px"></textarea></div>
-        <div class="field"><label>DHLPP</label><textarea data-cl="blocks.vaccine_dhlpp" style="min-height:50px"></textarea></div>
-        <div class="field"><label>Bordetella</label><textarea data-cl="blocks.vaccine_bordetella" style="min-height:50px"></textarea></div>
-        <div class="field"><label>Rabies</label><textarea data-cl="blocks.vaccine_rabies" style="min-height:50px"></textarea></div>
-        <div class="field"><label>Sign-off (every email)</label><textarea data-cl="signoff" style="min-height:70px"></textarea></div>
-      </div>
-
-      <div class="step-card" style="margin-bottom:14px">
-        <div class="step-head"><h3>Custom check items</h3></div>
-        <div class="hint" style="margin-bottom:10px">Track anything with a deal property. The email text is included while the rule says the item is missing — and disappears once it's resolved.</div>
-        <div id="customItems"></div>
-        <button class="add-step" style="margin-left:0;width:100%" id="addCustomItemBtn">＋ Add check item</button>
-      </div>
-
-      <div class="step-card">
-        <div class="step-head"><h3>Cadence (days between reminders)</h3></div>
-        <div class="row">
-          <div class="field"><label>😌 Relaxed: every</label><input type="text" data-cl="cadence.relaxedDays"></div>
-          <div class="field"><label>⏳ Approaching: every</label><input type="text" data-cl="cadence.approachingDays"></div>
-          <div class="field"><label>🔥 Urgent: every</label><input type="text" data-cl="cadence.urgentDays"></div>
+    <!-- SETTINGS -->
+    <div id="settingsView" style="display:none">
+      <div class="tabs"><button class="on" data-tab="numbers" id="tabNumbers">SMS numbers</button><button data-tab="links" id="tabLinks">Booking links</button></div>
+      <div class="setgrid">
+        <div class="setcard" id="numbersCard">
+          <h3>SMS sending numbers</h3>
+          <div class="sub">Each lead is texted from the right person's number for the lead's <b>region</b>. Pick the person, the region, and the OpenPhone line. The number sent is resolved automatically at send time.</div>
+          <div id="numbersBody"></div>
+          <div class="add-row"><button class="add-step" id="addNumberBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add a number</button></div>
+          <div class="modal-actions"><button class="btn btn-brass" id="saveNumbersBtn">Save numbers</button></div>
         </div>
-        <div class="row">
-          <div class="field"><label>"Approaching" starts at ≤ days</label><input type="text" data-cl="cadence.approachingThreshold"></div>
-          <div class="field"><label>"Urgent" starts at ≤ days</label><input type="text" data-cl="cadence.urgentThreshold"></div>
+        <div class="setcard" id="linksCard" style="display:none">
+          <h3>Sender booking links</h3>
+          <div class="sub">Use the <code>{{sender_booking_link}}</code> token in any email — it becomes that sender's personal link. Anyone without one gets the fallback.</div>
+          <div id="senderLinkRows"></div>
+          <div class="add-row"><button class="add-step" id="addSenderLinkBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add a sender</button></div>
+          <div class="field" style="margin-top:16px"><label>Fallback link (used when a sender has no personal link)</label><input type="text" id="fallbackLink" placeholder="https://dogwiseacademy.com/contact"></div>
+          <div class="modal-actions"><button class="btn btn-brass" id="saveSettingsBtn">Save links</button></div>
         </div>
-        <div class="hint">Extra tokens for this campaign: {{deal.program_start_date}}, {{deal.amount_outstanding}}, {{deal.remaining_balance_link}}, {{days_left}}</div>
       </div>
     </div>
-    <button class="add-step" id="addStepBtn">＋ Add a follow-up email</button>
-    <button class="btn btn-danger-ghost" id="deleteBtn" style="margin-top:16px">Delete this campaign</button>
 
-    
-
-    <div class="howto">
-      <b>How leads get these emails:</b> your HubSpot workflow (or the enroll button in the extension) puts a contact into a campaign. From then on this app sends each email at the right time, <b>from the lead's deal owner's Gmail</b>, with <code>{{firstname}}</code> filled in automatically. Every send appears on the contact's HubSpot timeline. Contacts who opt out or leave the campaign stop receiving emails immediately.
-    </div>
-    </div>
-
-    <aside class="camp-side" id="campSide">
-      <div class="cs-card">
-        <h3>This campaign — all time</h3>
-        <div class="cs-stats" id="csStats"><div><div class="n">–</div><div class="l">Sent</div></div><div><div class="n amber">–</div><div class="l">Opened</div></div><div><div class="n green">–</div><div class="l">Replied</div></div></div>
+    <!-- EDITOR -->
+    <div id="editorView" class="ed">
+     <div class="ed-main">
+      <div class="card meta">
+        <div class="row3">
+          <div class="field" style="margin-bottom:0"><label>Sequence name</label><input type="text" id="campLabel" placeholder="e.g. Summer re-engagement"></div>
+          <div class="field" style="margin-bottom:0"><label>Send everything from (optional)</label><input type="text" id="campSendAs" placeholder="Blank = each lead's deal owner"><div class="hint">A @dogwiseacademy.com address to send the whole sequence as one person</div></div>
+        </div>
+        <div class="metabar">
+          <div class="wgroup">
+            <span class="wl">Send window</span>
+            <div class="hourbox"><select id="winStart"></select><span class="to">to</span><select id="winEnd"></select></div>
+            <span class="tzchip">lead's local time</span>
+          </div>
+          <label class="switch"><input type="checkbox" id="stopCalled"><span class="track"></span><span class="sl">Stop if a rep logs a call</span></label>
+          <span class="folder-chip" id="folderChip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-7.9a1 1 0 0 1-.8-.4l-1.1-1.4a1 1 0 0 0-.8-.4H4a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1Z"/></svg><span id="folderChipName">Unfiled</span></span>
+        </div>
       </div>
-      <div class="cs-card">
-        <h3>Recent activity</h3>
-        <div class="cs-feed" id="csFeed"><div class="cs-empty">No activity yet for this campaign</div></div>
+
+      <div class="leash stagger" id="leash"></div>
+
+      <div id="checklistEd" style="display:none">
+        <div class="card step-card" style="margin-bottom:14px"><div class="step-top"><h3>First email — always sent on Closed Won</h3></div>
+          <div class="field"><label>Subject</label><input type="text" data-cl="firstEmail.subject"></div>
+          <div class="field"><label>Body — the Anita hello (checklist items are appended automatically if anything's missing)</label><textarea data-cl="firstEmail.body"></textarea></div>
+          <div class="field"><label>Checklist lead-in line</label><input type="text" data-cl="checklistLeadIn"></div></div>
+        <div class="card step-card" style="margin-bottom:14px"><div class="step-top"><h3>Reminder intros — picked by urgency</h3></div>
+          <div class="field"><label>😌 Relaxed (14+ days out) — subject</label><input type="text" data-cl="intros.relaxed.subject"></div>
+          <div class="field"><label>Relaxed — body</label><textarea data-cl="intros.relaxed.body" style="min-height:80px"></textarea></div>
+          <div class="field"><label>⏳ Approaching (3–13 days) — subject</label><input type="text" data-cl="intros.approaching.subject"></div>
+          <div class="field"><label>Approaching — body</label><textarea data-cl="intros.approaching.body" style="min-height:80px"></textarea></div>
+          <div class="field"><label>🔥 Urgent (0–2 days) — subject</label><input type="text" data-cl="intros.urgent.subject"></div>
+          <div class="field"><label>Urgent — body</label><textarea data-cl="intros.urgent.body" style="min-height:80px"></textarea></div></div>
+        <div class="card step-card" style="margin-bottom:14px"><div class="step-top"><h3>Checklist blocks — shown only while that item is missing</h3></div>
+          <div class="field"><label>Client intake form</label><textarea data-cl="blocks.intake_form" style="min-height:56px"></textarea></div>
+          <div class="field"><label>Training management form</label><textarea data-cl="blocks.manager_form" style="min-height:56px"></textarea></div>
+          <div class="field"><label>Remaining balance</label><textarea data-cl="blocks.balance" style="min-height:56px"></textarea></div>
+          <div class="field"><label>DHLPP</label><textarea data-cl="blocks.vaccine_dhlpp" style="min-height:48px"></textarea></div>
+          <div class="field"><label>Bordetella</label><textarea data-cl="blocks.vaccine_bordetella" style="min-height:48px"></textarea></div>
+          <div class="field"><label>Rabies</label><textarea data-cl="blocks.vaccine_rabies" style="min-height:48px"></textarea></div>
+          <div class="field"><label>Sign-off (every email)</label><textarea data-cl="signoff" style="min-height:64px"></textarea></div></div>
+        <div class="card step-card" style="margin-bottom:14px"><div class="step-top"><h3>Custom check items</h3></div>
+          <div class="hint" style="margin-bottom:10px">Track anything with a deal property. The text shows while the rule says it's missing, and disappears once resolved.</div>
+          <div id="customItems"></div>
+          <button class="add-step" style="width:100%;margin-top:4px" id="addCustomItemBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add check item</button></div>
+        <div class="card step-card"><div class="step-top"><h3>Cadence (days between reminders)</h3></div>
+          <div class="row"><div class="field"><label>😌 Relaxed: every</label><input type="text" data-cl="cadence.relaxedDays"></div><div class="field"><label>⏳ Approaching: every</label><input type="text" data-cl="cadence.approachingDays"></div></div>
+          <div class="row"><div class="field"><label>🔥 Urgent: every</label><input type="text" data-cl="cadence.urgentDays"></div><div class="field"><label>"Approaching" at ≤ days</label><input type="text" data-cl="cadence.approachingThreshold"></div></div>
+          <div class="field"><label>"Urgent" at ≤ days</label><input type="text" data-cl="cadence.urgentThreshold"></div>
+          <div class="hint">Extra tokens here: {{deal.program_start_date}}, {{deal.amount_outstanding}}, {{deal.remaining_balance_link}}, {{days_left}}</div></div>
       </div>
-    </aside>
+
+      <div class="add-row" id="addRow"><button class="add-step" id="addStepBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add a step</button></div>
+      <button class="btn btn-danger-ghost" id="deleteBtn" style="margin-top:14px">Delete this sequence</button>
+
+      <div class="howto">
+        <b>How leads get these:</b> a HubSpot workflow (or the extension) enrolls a contact into a sequence. From then on this app fires each step at the right time — email from the lead's deal owner, SMS from that owner's number for the lead's region — with tokens filled in. Every send lands on the contact's HubSpot timeline. Opt-outs, replies and rep calls stop the sequence on their own.
+      </div>
+     </div>
+
+     <aside class="rail" id="rail">
+      <div class="rail-card"><h4>This sequence · all time</h4>
+        <div class="rstats" id="rStats"><div><div class="n">–</div><div class="l">Sent</div></div><div><div class="n a">–</div><div class="l">Opened</div></div><div><div class="n g">–</div><div class="l">Replied</div></div></div></div>
+      <div class="rail-card"><h4>Recent activity</h4><div class="feed" id="rFeed"><div class="empty">No activity yet</div></div></div>
+     </aside>
     </div>
+   </div>
   </main>
 </div>
 
-<!-- New campaign modal -->
-<div class="modal-bg" id="newModal">
-  <div class="modal">
-    <h3>New campaign</h3>
-    <div class="sub">Give it a name — you can add emails right after.</div>
-    <div class="field">
-      <label>Campaign name</label>
-      <input type="text" id="newName" placeholder="e.g. Board & Train Follow-up">
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal('newModal')">Cancel</button>
-      <button class="btn btn-primary" id="createBtn">Create campaign</button>
-    </div>
-  </div>
-</div>
+<!-- ══ MODALS ══ -->
+<div class="modal-bg" id="newModal"><div class="modal">
+  <h3>New sequence</h3><div class="sub">Give it a name — add email and SMS steps right after.</div>
+  <div class="field"><label>Sequence name</label><input type="text" id="newName" placeholder="e.g. Board &amp; train follow-up"></div>
+  <div class="modal-actions"><button class="btn btn-ghost" data-close="newModal">Cancel</button><button class="btn btn-brass" id="createBtn">Create sequence</button></div>
+</div></div>
 
-<!-- Test send modal -->
-<div class="modal-bg" id="testModal">
-  <div class="modal">
-    <h3>Send yourself a test</h3>
-    <div class="sub">Sends email #1 of this campaign, exactly as a lead would receive it (tokens filled with sample values).</div>
-    <div class="field">
-      <label>Send from (must be a @dogwiseacademy.com account)</label>
-      <input type="text" id="testAs" placeholder="you@dogwiseacademy.com">
-    </div>
-    <div class="field">
-      <label>Send to</label>
-      <input type="text" id="testTo" placeholder="you@dogwiseacademy.com">
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal('testModal')">Cancel</button>
-      <button class="btn btn-primary" id="testSendBtn">Send test</button>
-    </div>
-  </div>
-</div>
+<div class="modal-bg" id="testModal"><div class="modal">
+  <h3>Send yourself a test</h3><div class="sub">Sends step 1 of this sequence exactly as a lead would get it (tokens filled with sample values). SMS steps can't be tested here yet — email only.</div>
+  <div class="field"><label>Send from (a @dogwiseacademy.com account)</label><input type="text" id="testAs" placeholder="you@dogwiseacademy.com"></div>
+  <div class="field"><label>Send to</label><input type="text" id="testTo" placeholder="you@dogwiseacademy.com"></div>
+  <div class="modal-actions"><button class="btn btn-ghost" data-close="testModal">Cancel</button><button class="btn btn-brass" id="testSendBtn">Send test</button></div>
+</div></div>
 
-<div class="modal-bg" id="settingsModal">
-  <div class="modal" style="width:560px">
-    <h3>Sender booking links</h3>
-    <div class="sub">Use the <b>{{sender_booking_link}}</b> token in any email — it becomes the sender's personal link. Senders without one get the fallback.</div>
-    <div id="senderLinkRows"></div>
-    <button class="btn btn-ghost" id="addSenderLinkBtn" style="margin-bottom:14px">＋ Add sender</button>
-    <div class="field"><label>Fallback link (used when the sender has no personal link)</label>
-      <input type="text" id="fallbackLink" placeholder="e.g. https://dogwiseacademy.com/contact"></div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal('settingsModal')">Cancel</button>
-      <button class="btn btn-primary" id="saveSettingsBtn">Save links</button>
-    </div>
-  </div>
-</div>
-
+<!-- ══ CONTEXT MENU ══ -->
+<div class="ctx" id="ctx"></div>
 <div class="toast" id="toast"></div>
-
 <script>
-const TOKENS = [
-  ['{{firstname}}', "Lead's first name"],
-  ['{{lastname}}', "Lead's last name"],
-  ['{{email}}', "Lead's email — for pre-filled form links"],
-  ['{{sender_firstname}}', "Deal owner's first name"],
-  ['{{sender_lastname}}', "Deal owner's last name"]
-];
+/* ═══════════════════════════════════════════════════════════════════
+   PREVIEW BUILD. Runs on in-memory sample data so it renders anywhere.
+   To ship: set DEMO=false and the same api() calls hit the real backend.
+   ═══════════════════════════════════════════════════════════════════ */
+const DEMO = true;
+const REGIONS = ['East Coast','Florida','Illinois','Texas','Colorado','West Coast'];
 
-let pw = sessionStorage.getItem('dw_pw') || '';
-let campaigns = {};
-let activeKey = null;
-let lastFocusedText = null;
+/* ── sample data ────────────────────────────────────────────────── */
+const now = Date.now(), H = 3600000, D = 86400000;
+let DB = {
+  storeConfigured: true,
+  folders: [{id:'f_leads',name:'New leads'},{id:'f_nurture',name:'Nurture'},{id:'f_clients',name:'Client onboarding'}],
+  owners: [
+    {id:'75482998',name:'Alma Reyes',email:'alma@dogwiseacademy.com'},
+    {id:'89047041',name:'Emmalee Cruz',email:'emmalee@dogwiseacademy.com'},
+    {id:'89704240',name:'Kloie Banks',email:'kloie@dogwiseacademy.com'},
+    {id:'414684321',name:'Olivia Shah',email:'olivia@dogwiseacademy.com'},
+    {id:'681113136',name:'Ariane Dubois',email:'ariane@dogwiseacademy.com'},
+    {id:'anita',name:'Anita Oliveira',email:'anita@dogwiseacademy.com'}
+  ],
+  numbers: [
+    {id:'PNItsh7bWS',number:'+1 (212) 555-0142',name:'Alma · East'},
+    {id:'PNceGqLFha',number:'+1 (305) 555-0118',name:'Alma · Florida'},
+    {id:'PNEcKEoyHX',number:'+1 (415) 555-0173',name:'Alma · West'},
+    {id:'PNhk6l4DYO',number:'+1 (212) 555-0155',name:'Emmalee · East'},
+    {id:'PNgxmHZMTt',number:'+1 (212) 555-0164',name:'Kloie · East'},
+    {id:'PNCVRsFSYc',number:'+1 (212) 555-0177',name:'Olivia · East'},
+    {id:'PNdBXv8eHM',number:'+1 (212) 555-0188',name:'Ariane · East'}
+  ],
+  settings: {
+    senderLinks:{'anita@dogwiseacademy.com':'https://calendly.com/anita-dogwise'},
+    senderLinkFallback:'https://dogwiseacademy.com/book',
+    smsNumbers:{'75482998':{'East Coast':'PNItsh7bWS','Florida':'PNceGqLFha','West Coast':'PNEcKEoyHX'},'89047041':{'East Coast':'PNhk6l4DYO'}}
+  },
+  campaigns: {
+    welcome:{label:'Welcome email (new leads)',steps:[{channel:'email',delayDaysAfter:null,subject:'Welcome to Dogwise, {{firstname}}! 🐕',body:"Hi {{firstname}},\n\nThanks for reaching out to Dogwise Academy! I saw your inquiry come in and wanted to introduce myself — I'll be your point of contact here.\n\nOur board-and-train programs are built around one idea: real training happens in real life. I'd love to hear more about your dog.\n\nDo you have 10 minutes this week for a quick call?\n\nBest,\n{{sender_firstname}}"}]},
+    first_contact:{label:'First contact — text then email',folder:'f_leads',stopIfCalled:true,window:{startHour:9,endHour:16},steps:[
+      {channel:'sms',days:{weekday:true,weekend:true},delayDaysAfter:1,body:"Hi {{firstname}}! {{sender_firstname}} from Dogwise Academy here. Saw your request come in — when's a good time for a quick call? Happy to text too."},
+      {channel:'email',days:{weekday:true,weekend:false},delayDaysAfter:null,subject:'Following up on {{firstname}}\u2019s training 🐾',body:"Hi {{firstname}},\n\nJust circling back in case a text is easy to miss. Whenever you've got a few minutes, I'd love to hear what you're hoping to work on.\n\n{{sender_firstname}}"}
+    ]},
+    reengage:{label:'Re-engagement (cold leads)',folder:'f_nurture',window:{startHour:9,endHour:17},steps:[
+      {channel:'email',days:{weekday:true,weekend:true},delayDaysAfter:3,subject:'Still thinking it over, {{firstname}}?',body:"Hi {{firstname}},\n\nNo rush at all — just wanted to keep the door open. Reply any time and we'll pick up where we left off."},
+      {channel:'email',days:{weekday:true,weekend:false},delayDaysAfter:4,subject:'A quick before/after that might help',body:"Hi {{firstname}},\n\nHere's a short clip of a board-and-train graduate who came in with the same challenges you mentioned.\n\n[[button:Watch the 90-second clip|https://dogwiseacademy.com/results]]"},
+      {channel:'sms',days:{weekday:true,weekend:false},delayDaysAfter:null,body:"Hi {{firstname}}, {{sender_firstname}} here — still happy to help whenever the timing's right. Just text back and we'll sort it out."}
+    ]},
+    onboarding:{label:'Onboarding checklist (Closed Won)',type:'checklist',folder:'f_clients',sendAs:'anita@dogwiseacademy.com',
+      cadence:{relaxedDays:4,approachingDays:2,urgentDays:1,approachingThreshold:13,urgentThreshold:2},
+      firstEmail:{subject:"Welcome to Dogwise, {{firstname}}! Let's get everything ready 🎉",body:"Hi {{firstname}},\n\nI'm Anita, and I'll help you get set up before the start date — {{deal.program_start_date}}. Any questions, just reply."},
+      checklistLeadIn:"Here's what we still need before {{deal.program_start_date}}:",
+      intros:{relaxed:{subject:'Getting ready for {{deal.program_start_date}}',body:"Hi {{firstname}},\n\nA friendly check-in — a couple of items still outstanding:"},approaching:{subject:'{{days_left}} days to go',body:"Hi {{firstname}},\n\nWe're {{days_left}} days out. Still need:"},urgent:{subject:'Needed before {{deal.program_start_date}}',body:"Hi {{firstname}},\n\nStart date's almost here and we still need the below:"}},
+      blocks:{intake_form:'📋 Client intake form: [Complete it here](https://share.hsforms.com/x?email={{email}})',manager_form:'📝 Training management form: [Complete it here](https://share.hsforms.com/y?email={{email}})',balance:'💳 Remaining balance of {{deal.amount_outstanding}}:\n[[button:Pay balance|{{deal.remaining_balance_link}}]]',vaccine_dhlpp:'💉 DHLPP record — reply with a photo/scan.',vaccine_bordetella:'💉 Bordetella record — reply with a photo/scan.',vaccine_rabies:'💉 Rabies record — reply with a photo/scan.'},
+      customItems:[],
+      signoff:"Thanks so much — reply any time!\n\nWarmly,\n{{sender_firstname}}\nDogwise Academy"}
+  },
+  activity: (()=>{ const e=[
+    ['sent','sms','jess.turner@gmail.com','first_contact',1,'alma@dogwiseacademy.com',0.6*H],
+    ['replied','sms','+1 (305) 555-0198','first_contact',1,'alma@dogwiseacademy.com',1.4*H],
+    ['opened','email','mark.davies@outlook.com','reengage',2,'olivia@dogwiseacademy.com',2.2*H],
+    ['sent','email','priya.n@gmail.com','reengage',1,'olivia@dogwiseacademy.com',3.1*H],
+    ['sent','email','h.becker@web.de','welcome',1,'kloie@dogwiseacademy.com',5*H],
+    ['opened','email','h.becker@web.de','welcome',1,'kloie@dogwiseacademy.com',5.4*H],
+    ['sent','sms','+1 (212) 555-0231','first_contact',1,'emmalee@dogwiseacademy.com',26*H],
+    ['skipped','sms','a.romano@gmail.com','first_contact',1,'alma@dogwiseacademy.com',27*H],
+    ['error','email','bad-address@','reengage',2,'olivia@dogwiseacademy.com',30*H],
+    ['replied','email','sofia.lang@gmx.net','reengage',3,'ariane@dogwiseacademy.com',52*H]
+  ]; return e.map(([type,channel,contact,campaign,step,sender,ago])=>({t:now-ago,type,channel,contact,campaign,step,sender})); })(),
+  allTime:{total:{sent:1284,opened:642,replied:203,error:11},perCampaign:{first_contact:{sent:540,opened:0,replied:96},reengage:{sent:602,opened:410,replied:88},welcome:{sent:142,opened:98,replied:19}}}
+};
 
+/* ── mock API (mirrors the real endpoints) ─────────────────────────── */
+async function mockApi(path,opts={}){
+  await new Promise(r=>setTimeout(r,120));
+  const body = opts.body ? JSON.parse(opts.body) : {};
+  const ok = d => ({ok:true,status:200,json:async()=>d});
+  if(path==='/api/campaigns'){
+    if(opts.method==='POST'){ DB.campaigns[body.key]=body.campaign; return ok({ok:true,campaigns:DB.campaigns}); }
+    if(opts.method==='DELETE'){ delete DB.campaigns[body.key]; return ok({ok:true,campaigns:DB.campaigns}); }
+    return ok({campaigns:DB.campaigns,folders:DB.folders,storeConfigured:true});
+  }
+  if(path==='/api/folders'){ if(opts.method==='POST'){ DB.folders=body.folders; } return ok({folders:DB.folders}); }
+  if(path==='/api/owners') return ok({owners:DB.owners});
+  if(path==='/api/openphone-numbers') return ok({configured:true,numbers:DB.numbers});
+  if(path==='/api/settings'){ if(opts.method==='POST'){ DB.settings={...DB.settings,...body}; } return ok(DB.settings); }
+  if(path==='/api/activity'){
+    const s=DB.activity, startDay=new Date(); startDay.setHours(0,0,0,0);
+    const c=(t,since)=>s.filter(e=>e.type===t&&e.t>=since).length;
+    return ok({events:s,allTime:DB.allTime,stats:{
+      today:{sent:c('sent',startDay.getTime()),opened:c('opened',startDay.getTime()),replied:c('replied',startDay.getTime()),errors:c('error',startDay.getTime())},
+      week:{sent:c('sent',now-7*D),opened:c('opened',now-7*D),replied:c('replied',now-7*D),errors:c('error',now-7*D)}
+    }});
+  }
+  return ok({ok:true});
+}
+function api(path,opts={}){ return DEMO ? mockApi(path,opts) : fetch(path,{...opts,headers:{'Authorization':'Bearer '+pw,'Content-Type':'application/json',...(opts.headers||{})}}); }
+
+/* ── helpers ───────────────────────────────────────────────────────── */
 const $ = id => document.getElementById(id);
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
+const ICONS = {
+  email:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>',
+  sms:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-3.7-.7L3 21l1.3-4a8.4 8.4 0 0 1-.8-3.5A8.4 8.4 0 0 1 12 5a8.4 8.4 0 0 1 9 6.5Z"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+  pin:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 4v6L7 13v2h4v6l1 1 1-1v-6h4v-2l-2-3V4z"/></svg>'
+};
+function toast(msg,cls=''){ const t=$('toast'); const tick=cls==='ok'?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>':''; t.innerHTML=tick+'<span>'+esc(msg)+'</span>'; t.className='toast show '+cls; clearTimeout(t._t); t._t=setTimeout(()=>t.className='toast',3200); }
 
-function toast(msg, cls = '') {
-  const t = $('toast');
-  t.textContent = msg;
-  t.className = 'toast show ' + cls;
-  setTimeout(() => t.className = 'toast', 3200);
-}
+let pw = sessionStorage.getItem('dw_pw')||'', campaigns={}, folders=[], activeKey=null, lastFocusedText=null, view='editor';
 
-function api(path, opts = {}) {
-  return fetch(path, {
-    ...opts,
-    headers: { 'Authorization': 'Bearer ' + pw, 'Content-Type': 'application/json', ...(opts.headers || {}) }
-  });
-}
-
-async function login() {
-  pw = $('pw').value.trim();
+/* ── login ─────────────────────────────────────────────────────────── */
+async function login(){
+  pw = DEMO ? 'demo' : $('pw').value.trim();
   const res = await api('/api/campaigns');
-  if (res.status === 401) { $('gateErr').style.display = 'block'; return; }
+  if(res.status===401){ $('gateErr').style.display='block'; return; }
   const data = await res.json();
-  sessionStorage.setItem('dw_pw', pw);
-  campaigns = data.campaigns || {};
-  $('storeBanner').style.display = data.storeConfigured ? 'none' : 'block';
-  $('gate').style.display = 'none';
-  $('app').style.display = 'grid';
+  sessionStorage.setItem('dw_pw',pw);
+  campaigns = data.campaigns||{}; folders = data.folders||[];
+  $('storeBanner').style.display = data.storeConfigured ? 'none':'block';
+  $('gate').style.display='none'; $('app').classList.add('on');
   loadSettings();
-  selectCampaign(campaigns['welcome'] ? 'welcome' : Object.keys(campaigns)[0]);
+  showEditor(campaigns['welcome']?'welcome':Object.keys(campaigns)[0]);
 }
 
-function renderList() {
-  const el = $('campList');
-  el.innerHTML = '';
-  const all = Object.keys(campaigns);
-  const groups = [
-    ['', all.filter(k => k === 'welcome')],
-    ['Checklists', all.filter(k => k !== 'welcome' && campaigns[k].type === 'checklist').sort()],
-    ['Campaigns', all.filter(k => k !== 'welcome' && campaigns[k].type !== 'checklist').sort()]
-  ];
-  const keys = [];
-  for (const [title, ks] of groups) {
-    if (ks.length === 0) continue;
-    if (title) {
-      const hd = document.createElement('div');
-      hd.style.cssText = 'font-size:10px;text-transform:uppercase;letter-spacing:0.8px;opacity:0.5;padding:12px 12px 4px;font-weight:600';
-      hd.textContent = title;
-      el.appendChild(hd);
-    }
-    keys.push(...ks);
-    for (const key of ks) renderCampItem(key);
+/* ── folder collapse state (local convenience only) ─────────────────── */
+const collapsedKey='dwm_folders_collapsed';
+function isCollapsed(id){ try{return (JSON.parse(localStorage.getItem(collapsedKey))||[]).includes(id);}catch{return false;} }
+function toggleCollapsed(id){ let a=[]; try{a=JSON.parse(localStorage.getItem(collapsedKey))||[];}catch{} a.includes(id)?a=a.filter(x=>x!==id):a.push(id); localStorage.setItem(collapsedKey,JSON.stringify(a)); }
+
+/* ── TREE ──────────────────────────────────────────────────────────── */
+function campBadge(c){ if(c.type==='checklist') return 'list'; const s=(c.steps||[]); const sms=s.filter(x=>x.channel==='sms').length, em=s.length-sms; return sms&&em?`${em}✉ ${sms}✕`.replace('✕','💬'):sms?`${sms} SMS`:`${s.length} email${s.length>1?'s':''}`; }
+function campIcon(key,c){ if(key==='welcome') return ICONS.pin; if(c.type==='checklist') return ICONS.check; const hasSms=(c.steps||[]).some(x=>x.channel==='sms'); return hasSms?ICONS.sms:ICONS.email; }
+
+function itemEl(key){
+  const c=campaigns[key]; const d=document.createElement('div');
+  d.className='item'+(key===activeKey?' active':'')+(key==='welcome'?' pinned':'');
+  d.dataset.key=key; if(key!=='welcome') d.draggable=true;
+  d.innerHTML=`<span class="ic">${campIcon(key,c)}</span><span class="nm">${esc(c.label)}</span><span class="cnt">${campBadge(c)}</span>`;
+  d.onclick=()=>showEditor(key);
+  d.oncontextmenu=e=>{ e.preventDefault(); openItemMenu(e,key); };
+  if(key!=='welcome'){
+    d.addEventListener('dragstart',e=>{ e.dataTransfer.setData('text/plain',key); e.dataTransfer.effectAllowed='move'; d.classList.add('dragging'); });
+    d.addEventListener('dragend',()=>d.classList.remove('dragging'));
   }
-  function renderCampItem(key) {
-    const c = campaigns[key];
-    const div = document.createElement('div');
-    div.className = 'camp-item' + (key === activeKey ? ' active' : '');
-    const badge = c.type === 'checklist' ? 'checklist' : `${(c.steps || []).length} email${(c.steps || []).length > 1 ? 's' : ''}`;
-    div.innerHTML = (key === 'welcome' ? '<span class="pin">📌</span>' : c.type === 'checklist' ? '<span class="pin">✅</span>' : '<span class="pin">✉️</span>')
-      + `<span>${esc(c.label)}</span><span class="n">${badge}</span>`;
-    div.onclick = () => showEditor(key);
-    el.appendChild(div);
+  return d;
+}
+function dropTarget(el,folderId){
+  el.addEventListener('dragover',e=>{ e.preventDefault(); e.dataTransfer.dropEffect='move'; el.classList.add('drop-hint'); });
+  el.addEventListener('dragleave',()=>el.classList.remove('drop-hint'));
+  el.addEventListener('drop',e=>{ e.preventDefault(); el.classList.remove('drop-hint'); const key=e.dataTransfer.getData('text/plain'); if(key) moveCampaign(key,folderId); });
+}
+function renderTree(){
+  const q=($('search').value||'').toLowerCase().trim();
+  const match=k=>!q||(campaigns[k].label||'').toLowerCase().includes(q);
+  const el=$('tree'); el.innerHTML='';
+  const all=Object.keys(campaigns).filter(match);
+
+  // pinned welcome
+  if(campaigns.welcome && match('welcome')){
+    const sec=document.createElement('div'); sec.className='tree-sec'; sec.innerHTML='<span>Pinned</span><span class="ln"></span>'; el.appendChild(sec);
+    el.appendChild(itemEl('welcome'));
+  }
+  // folders
+  for(const f of folders){
+    const keys=all.filter(k=>k!=='welcome'&&campaigns[k].folder===f.id).sort((a,b)=>campaigns[a].label.localeCompare(campaigns[b].label));
+    if(q && keys.length===0) continue;
+    const wrap=document.createElement('div'); wrap.className='folder'+(isCollapsed(f.id)?' collapsed':'');
+    const head=document.createElement('div'); head.className='folder-head'; head.dataset.folder=f.id;
+    head.innerHTML=`<svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg><svg class="fic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-7.9a1 1 0 0 1-.8-.4l-1.1-1.4a1 1 0 0 0-.8-.4H4a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1Z"/></svg><span class="fnm">${esc(f.name)}</span><span class="fct">${keys.length}</span>`;
+    head.onclick=e=>{ if(e.target.classList.contains('rename'))return; toggleCollapsed(f.id); renderTree(); };
+    head.oncontextmenu=e=>{ e.preventDefault(); openFolderMenu(e,f); };
+    head.ondblclick=()=>renameFolderInline(head,f);
+    dropTarget(head,f.id);
+    const bodyEl=document.createElement('div'); bodyEl.className='folder-body'; dropTarget(bodyEl,f.id);
+    keys.forEach(k=>bodyEl.appendChild(itemEl(k)));
+    if(keys.length===0){ const e2=document.createElement('div'); e2.style.cssText='font-size:11px;color:#6d84a4;padding:6px 10px'; e2.textContent='Empty — drop a sequence here'; bodyEl.appendChild(e2); }
+    wrap.appendChild(head); wrap.appendChild(bodyEl); el.appendChild(wrap);
+  }
+  // unfiled
+  const folderIds=new Set(folders.map(f=>f.id));
+  const unfiled=all.filter(k=>k!=='welcome'&&(!campaigns[k].folder||!folderIds.has(campaigns[k].folder))).sort((a,b)=>campaigns[a].label.localeCompare(campaigns[b].label));
+  if(unfiled.length){
+    const sec=document.createElement('div'); sec.className='tree-sec'; sec.innerHTML='<span>Unfiled</span><span class="ln"></span>'; dropTarget(sec,null); el.appendChild(sec);
+    const holder=document.createElement('div'); dropTarget(holder,null); unfiled.forEach(k=>holder.appendChild(itemEl(k))); el.appendChild(holder);
   }
 }
 
-let draftTimer = null;
-function scheduleDraft() {
-  clearTimeout(draftTimer);
-  draftTimer = setTimeout(() => {
-    if (activeKey && campaigns[activeKey]) {
-      localStorage.setItem('dwm_draft_' + activeKey, JSON.stringify({ t: Date.now(), c: campaigns[activeKey] }));
-      const el = document.getElementById('draftNote');
-      if (el) { el.textContent = 'Draft auto-saved ' + new Date().toLocaleTimeString(undefined, {hour:'2-digit',minute:'2-digit'}) + ' — remember to Save changes to go live'; el.style.display = 'block'; }
-    }
-  }, 1500);
+async function moveCampaign(key,folderId){
+  const c=campaigns[key]; if(!c||key==='welcome')return;
+  if((c.folder||null)===(folderId||null)){ renderTree(); return; }
+  c.folder = folderId||undefined; if(!folderId) delete c.folder;
+  renderTree(); if(activeKey===key) renderFolderChip();
+  const res=await api('/api/campaigns',{method:'POST',body:JSON.stringify({key,campaign:c})});
+  if(res.ok){ const d=await res.json(); campaigns=d.campaigns; const fn=folderId?(folders.find(f=>f.id===folderId)||{}).name:'Unfiled'; toast(`Moved to ${fn}`,'ok'); }
+  else toast('Could not move','err');
+  renderTree();
 }
-document.addEventListener('input', e => {
-  if (e.target.closest && (e.target.closest('#editorView'))) scheduleDraft();
-});
+async function saveFolders(){ const res=await api('/api/folders',{method:'POST',body:JSON.stringify({folders})}); if(res.ok){ folders=(await res.json()).folders; } return res.ok; }
+async function createFolder(){
+  const name=prompt('Folder name'); if(!name||!name.trim())return;
+  folders.push({id:'f_'+Date.now().toString(36),name:name.trim()});
+  if(await saveFolders()){ renderTree(); toast('Folder created','ok'); } else toast('Could not create folder','err');
+}
+function renameFolderInline(head,f){
+  const span=head.querySelector('.fnm'); const inp=document.createElement('input'); inp.className='rename'; inp.value=f.name;
+  span.replaceWith(inp); inp.focus(); inp.select();
+  const done=async(commit)=>{ if(commit&&inp.value.trim()){ f.name=inp.value.trim(); await saveFolders(); } renderTree(); };
+  inp.onkeydown=e=>{ if(e.key==='Enter')done(true); if(e.key==='Escape')done(false); };
+  inp.onblur=()=>done(true);
+}
+async function deleteFolder(f){
+  const inside=Object.keys(campaigns).filter(k=>campaigns[k].folder===f.id);
+  if(!confirm(`Delete folder "${f.name}"?${inside.length?`\n\nIts ${inside.length} sequence(s) move to Unfiled — they are not deleted.`:''}`))return;
+  for(const k of inside){ const c=campaigns[k]; delete c.folder; await api('/api/campaigns',{method:'POST',body:JSON.stringify({key:k,campaign:c})}); }
+  folders=folders.filter(x=>x.id!==f.id); await saveFolders();
+  const r=await api('/api/campaigns'); if(r.ok){ campaigns=(await r.json()).campaigns; }
+  renderTree(); toast('Folder deleted','ok');
+}
+/* ── context menus ─────────────────────────────────────────────────── */
+function hideCtx(){ $('ctx').style.display='none'; }
+function placeCtx(e){ const m=$('ctx'); m.style.display='block'; const w=m.offsetWidth,h=m.offsetHeight; m.style.left=Math.min(e.clientX,innerWidth-w-8)+'px'; m.style.top=Math.min(e.clientY,innerHeight-h-8)+'px'; }
+function openItemMenu(e,key){
+  const c=campaigns[key]; const canDelete=key!=='welcome'&&c.type!=='checklist';
+  const subItems = folders.map(f=>`<div class="ci" data-move="${f.id}">${esc(f.name)}</div>`).join('')
+    + `<div class="ci" data-move="__none">Unfiled</div><div class="sep"></div><div class="ci" data-move="__new">＋ New folder…</div>`;
+  const m=$('ctx');
+  m.innerHTML = key==='welcome'
+    ? `<div class="ci" data-open="${key}">Open</div>`
+    : `<div class="ci has-sub"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-7.9a1 1 0 0 1-.8-.4l-1.1-1.4a1 1 0 0 0-.8-.4H4a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1Z"/></svg>Move to<div class="sub">${subItems}</div></div>`
+      + `<div class="ci" data-open="${key}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>Open</div>`
+      + (canDelete?`<div class="sep"></div><div class="ci danger" data-del="${key}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>Delete sequence</div>`:'');
+  placeCtx(e);
+  m.querySelectorAll('[data-move]').forEach(b=>b.onclick=()=>{ hideCtx(); const v=b.dataset.move; if(v==='__new'){ createFolderThenMove(key); } else moveCampaign(key, v==='__none'?null:v); });
+  m.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{ hideCtx(); showEditor(b.dataset.open); });
+  m.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ hideCtx(); activeKey=b.dataset.del; deleteCampaign(); });
+}
+async function createFolderThenMove(key){ const name=prompt('New folder name'); if(!name||!name.trim())return; const id='f_'+Date.now().toString(36); folders.push({id,name:name.trim()}); await saveFolders(); await moveCampaign(key,id); }
+function openFolderMenu(e,f){
+  const m=$('ctx');
+  m.innerHTML=`<div class="ci" data-ren="1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Rename</div><div class="sep"></div><div class="ci danger" data-del="1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>Delete folder</div>`;
+  placeCtx(e);
+  m.querySelector('[data-ren]').onclick=()=>{ hideCtx(); const head=[...document.querySelectorAll('.folder-head')].find(h=>h.dataset.folder===f.id); if(head)renameFolderInline(head,f); };
+  m.querySelector('[data-del]').onclick=()=>{ hideCtx(); deleteFolder(f); };
+}
+document.addEventListener('click',hideCtx);
+document.addEventListener('scroll',hideCtx,true);
 
-function selectCampaign(key) {
-  activeKey = key;
-  const c = campaigns[key];
-  if (!c) return;
-  // Offer an unsaved local draft if one exists and differs from the server copy
-  try {
-    const raw = localStorage.getItem('dwm_draft_' + key);
-    if (raw) {
-      const d = JSON.parse(raw);
-      if (JSON.stringify(d.c) !== JSON.stringify(c)) {
-        if (confirm('You have an unsaved draft of "' + (c.label || key) + '" from ' + new Date(d.t).toLocaleString() + '.\n\nOK = restore the draft   ·   Cancel = discard it and use the saved version')) {
-          campaigns[key] = d.c;
-        } else {
-          localStorage.removeItem('dwm_draft_' + key);
-        }
-      } else {
-        localStorage.removeItem('dwm_draft_' + key);
-      }
-    }
-  } catch {}
-  const c2 = campaigns[key];
-  $('campTitle').textContent = c2.label;
-  $('campSub').textContent = key === 'welcome'
-    ? 'Always on — every new lead gets this first. Edit freely; it can\'t be deleted.'
-    : `Campaign key: ${key}`;
-  $('campLabel').value = c.label;
-  $('campSendAs').value = c.sendAs || '';
-  $('deleteBtn').style.display = (key === 'welcome' || c.type === 'checklist') ? 'none' : 'inline-block';
-  renderList();
-  renderSteps();
-  if (actCache) renderCampSide(key); fetchActivity().then(() => renderCampSide(key));
+/* ── view switching ────────────────────────────────────────────────── */
+function setNav(){ $('activityBtn').classList.toggle('active',view==='activity'); $('settingsBtn').classList.toggle('active',view==='settings'); }
+function showEditor(key){
+  view='editor'; $('editorView').style.display='grid'; $('activityView').style.display='none'; $('settingsView').style.display='none';
+  $('headActions').style.display='flex'; $('eyebrowText').textContent='Sequence'; setNav(); selectCampaign(key);
+}
+function showActivity(){
+  view='activity'; $('editorView').style.display='none'; $('settingsView').style.display='none'; $('activityView').style.display='block';
+  $('headActions').style.display='none'; $('eyebrowText').textContent='Overview';
+  $('campTitle').textContent='Activity'; $('campSub').textContent='Live send · open · reply feed across every sequence';
+  activeKey=null; setNav(); renderTree(); loadActivity();
+}
+function showSettings(){
+  view='settings'; $('editorView').style.display='none'; $('activityView').style.display='none'; $('settingsView').style.display='block';
+  $('headActions').style.display='none'; $('eyebrowText').textContent='Configuration';
+  $('campTitle').textContent='Numbers & links'; $('campSub').textContent='Where texts send from, and each sender\u2019s booking link';
+  activeKey=null; setNav(); renderTree(); loadOwnersNumbers();
 }
 
-function getPath(obj, path) { return path.split('.').reduce((o, k) => (o || {})[k], obj); }
-function setPath(obj, path, val) {
-  const keys = path.split('.'); let o = obj;
-  for (const k of keys.slice(0, -1)) { if (typeof o[k] !== 'object' || o[k] === null) o[k] = {}; o = o[k]; }
-  o[keys[keys.length - 1]] = val;
+/* ── select a sequence ─────────────────────────────────────────────── */
+let draftTimer=null;
+function scheduleDraft(){ clearTimeout(draftTimer); draftTimer=setTimeout(()=>{ if(activeKey&&campaigns[activeKey]){ localStorage.setItem('dwm_draft_'+activeKey,JSON.stringify({t:Date.now(),c:campaigns[activeKey]})); const el=$('draftNote'); el.textContent='Draft auto-saved '+new Date().toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'})+' — Save changes to go live'; el.style.display='block'; } },1500); }
+document.addEventListener('input',e=>{ if(e.target.closest&&e.target.closest('#editorView'))scheduleDraft(); });
+
+function selectCampaign(key){
+  activeKey=key; const c=campaigns[key]; if(!c)return;
+  try{ const raw=localStorage.getItem('dwm_draft_'+key); if(raw){ const d=JSON.parse(raw); if(JSON.stringify(d.c)!==JSON.stringify(c)){ if(confirm('Unsaved draft of "'+(c.label||key)+'" from '+new Date(d.t).toLocaleString()+'.\n\nOK = restore draft · Cancel = discard')){ campaigns[key]=d.c; } else localStorage.removeItem('dwm_draft_'+key); } else localStorage.removeItem('dwm_draft_'+key); } }catch{}
+  const c2=campaigns[key];
+  $('campTitle').textContent=c2.label;
+  $('campSub').innerHTML = key==='welcome' ? 'Always on — every new lead gets this first. Editable, but can\u2019t be deleted.' : `Sequence key <span class="mono" style="color:var(--slate)">${esc(key)}</span>`;
+  $('campLabel').value=c2.label; $('campSendAs').value=c2.sendAs||'';
+  $('deleteBtn').style.display=(key==='welcome'||c2.type==='checklist')?'none':'inline-block';
+  $('draftNote').style.display='none';
+  renderMeta(); renderSteps(); renderTree();
+  fetchActivity().then(()=>renderRail(key));
 }
 
-function renderCustomItems() {
-  const c = campaigns[activeKey];
-  c.customItems = c.customItems || [];
-  const wrap = document.getElementById('customItems');
-  wrap.innerHTML = c.customItems.map((item, i) => `
-    <div style="border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:10px;background:var(--paper)">
-      <div class="row">
-        <div class="field"><label>Item name</label><input type="text" data-ci="${i}" data-f="label" value="${esc(item.label || '')}" placeholder="e.g. Food type"></div>
-        <div class="field"><label>Deal property internal name</label><input type="text" data-ci="${i}" data-f="property" value="${esc(item.property || '')}" placeholder="e.g. food_type" style="font-family:monospace;font-size:12px"></div>
-      </div>
-      <div class="row">
-        <div class="field"><label>Missing when property...</label>
-          <select data-ci="${i}" data-f="mode" style="width:100%;padding:9px 11px;border:1.5px solid var(--line);border-radius:8px;font-size:13px;font-family:Inter;background:#fff">
-            <option value="empty" ${(item.mode||'empty')==='empty'?'selected':''}>is empty</option>
-            <option value="equals" ${item.mode==='equals'?'selected':''}>is exactly...</option>
-            <option value="not_contains" ${item.mode==='not_contains'?'selected':''}>does not contain...</option>
-          </select>
+/* ── meta: window + stop-if-called + folder chip ───────────────────── */
+function renderMeta(){
+  const c=campaigns[activeKey]; const w=c.window||{startHour:9,endHour:16};
+  $('winStart').value=String(w.startHour); $('winEnd').value=String(w.endHour);
+  $('stopCalled').checked=!!c.stopIfCalled;
+  renderFolderChip();
+}
+function renderFolderChip(){ const c=campaigns[activeKey]; const f=folders.find(x=>x.id===c.folder); $('folderChipName').textContent=f?f.name:'Unfiled'; }
+$('winStart').onchange=()=>{ const c=campaigns[activeKey]; c.window=c.window||{startHour:9,endHour:16}; c.window.startHour=+$('winStart').value; if(c.window.endHour<=c.window.startHour)c.window.endHour=Math.min(24,c.window.startHour+1),$('winEnd').value=String(c.window.endHour); scheduleDraft(); };
+$('winEnd').onchange=()=>{ const c=campaigns[activeKey]; c.window=c.window||{startHour:9,endHour:16}; c.window.endHour=+$('winEnd').value; if(c.window.endHour<=c.window.startHour){ c.window.startHour=Math.max(0,c.window.endHour-1); $('winStart').value=String(c.window.startHour); } scheduleDraft(); };
+$('stopCalled').onchange=()=>{ campaigns[activeKey].stopIfCalled=$('stopCalled').checked; scheduleDraft(); };
+$('folderChip').onclick=e=>{ openItemMenu({preventDefault(){},clientX:e.clientX,clientY:e.clientY},activeKey); };
+
+/* ── STEPS editor ──────────────────────────────────────────────────── */
+const TOK_EMAIL=[['{{firstname}}','Lead first name'],['{{lastname}}','Lead last name'],['{{email}}','Lead email — for form links'],['{{sender_firstname}}','Deal owner first name'],['{{sender_lastname}}','Deal owner last name']];
+const TOK_SMS=[['{{firstname}}','Lead first name'],['{{sender_firstname}}','Deal owner first name']];
+function smsCount(t){ const n=(t||'').length; const seg=n===0?0:(n<=160?1:Math.ceil(n/153)); return `${n} char${n===1?'':'s'} · ${seg} SMS`; }
+
+function renderSteps(){
+  const c=campaigns[activeKey], isCl=c.type==='checklist';
+  $('checklistEd').style.display=isCl?'block':'none';
+  $('leash').style.display=isCl?'none':'block';
+  $('addRow').style.display=isCl?'none':'flex';
+  if(isCl){ renderChecklist(); $('leash').innerHTML=''; return; }
+  const leash=$('leash'); leash.innerHTML='';
+  c.steps.forEach((step,i)=>{
+    if(!step.channel)step.channel='email'; if(!step.days)step.days={weekday:true,weekend:true};
+    const sms=step.channel==='sms';
+    const wrap=document.createElement('div'); wrap.className='step';
+    wrap.innerHTML=`
+      <div class="node ${sms?'sms':'email'}"><span class="nn">${i+1}</span><span class="chg">${sms?ICONS.sms:ICONS.email}</span></div>
+      <div class="step-card">
+        <div class="step-top">
+          <h3>Step ${i+1}</h3>${i===0?'<span class="tag">sent on enrollment</span>':''}
+          <div class="seg ${sms?'is-sms':''}" data-i="${i}">
+            <span class="glider" style="transition:left .22s cubic-bezier(.4,0,.2,1),width .22s"></span>
+            <button data-ch="email" class="${!sms?'on':''}">${ICONS.email}Email</button>
+            <button data-ch="sms" class="${sms?'on':''}">${ICONS.sms}SMS</button>
+          </div>
+          <div class="step-tools">
+            ${i>0?`<button class="ibtn" title="Move up" data-up="${i}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg></button>`:''}
+            ${i<c.steps.length-1?`<button class="ibtn" title="Move down" data-down="${i}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>`:''}
+            ${c.steps.length>1?`<button class="ibtn" title="Remove" data-rm="${i}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>`:''}
+          </div>
         </div>
-        <div class="field" style="display:${(item.mode==='equals'||item.mode==='not_contains')?'block':'none'}" id="ciVal${i}"><label>Value</label><input type="text" data-ci="${i}" data-f="value" value="${esc(item.value || '')}" placeholder="e.g. false"></div>
-      </div>
-      <div class="field" style="margin-bottom:4px"><label>Email text while missing</label><textarea data-ci="${i}" data-f="block" style="min-height:55px">${esc(item.block || '')}</textarea></div>
-      <button class="btn btn-danger-ghost" data-ci-remove="${i}" style="padding:4px 0">Remove this item</button>
-    </div>`).join('') || '<div class="cs-empty" style="padding:6px 0">No custom items yet</div>';
+        ${sms?'':`<div class="field"><label>Subject line</label><input type="text" data-i="${i}" data-f="subject" value="${esc(step.subject||'')}"></div>`}
+        <div class="field" style="margin-bottom:6px"><label>${sms?'Text message':'Email body'}</label><textarea data-i="${i}" data-f="body" ${sms?'data-sms="1" style="min-height:96px"':''}>${esc(step.body||'')}</textarea>
+          <div class="tokens">${(sms?TOK_SMS:TOK_EMAIL).map(([t,d])=>`<span class="token" title="${d}" data-tok="${t}">${t}</span>`).join('')}</div>
+        </div>
+        ${sms?`<div class="smsmeta"><span class="note">Sends from the deal owner\u2019s number for the lead\u2019s region.</span><span class="count" data-count="${i}">${smsCount(step.body)}</span></div>`:''}
+        <div class="daypills"><span class="dl">Sends on</span>
+          <button class="pill-toggle ${step.days.weekday?'on':''}" data-day="weekday" data-i="${i}"><span class="dot"></span>Weekdays</button>
+          <button class="pill-toggle ${step.days.weekend?'on':''}" data-day="weekend" data-i="${i}"><span class="dot"></span>Weekends</button>
+        </div>
+      </div>`;
+    leash.appendChild(wrap);
+    if(i<c.steps.length-1){
+      const tie=document.createElement('div'); tie.className='tie';
+      tie.innerHTML=`<span class="buckle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>wait <input type="number" min="1" value="${step.delayDaysAfter??2}" data-i="${i}" data-f="delay"> day(s)</span>`;
+      leash.appendChild(tie);
+    }
+  });
+  // wire
+  leash.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{ const i=+b.closest('.seg').dataset.i; campaigns[activeKey].steps[i].channel=b.dataset.ch; renderSteps(); scheduleDraft(); });
+  leash.querySelectorAll('[data-day]').forEach(b=>b.onclick=()=>{ const i=+b.dataset.i,k=b.dataset.day,st=campaigns[activeKey].steps[i]; const other=k==='weekday'?'weekend':'weekday'; if(st.days[k]&&!st.days[other])return; st.days[k]=!st.days[k]; b.classList.toggle('on',st.days[k]); scheduleDraft(); });
+  leash.querySelectorAll('[data-up]').forEach(b=>b.onclick=()=>moveStep(+b.dataset.up,-1));
+  leash.querySelectorAll('[data-down]').forEach(b=>b.onclick=()=>moveStep(+b.dataset.down,1));
+  leash.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{ campaigns[activeKey].steps.splice(+b.dataset.rm,1); renderSteps(); scheduleDraft(); });
+  leash.querySelectorAll('[data-tok]').forEach(t=>t.onclick=()=>insertToken(t.dataset.tok));
+  leash.querySelectorAll('input[type=text],textarea,input[type=number]').forEach(el=>{ el.addEventListener('input',syncField); el.addEventListener('focus',e=>{ if(e.target.dataset.f&&e.target.tagName!=='BUTTON')lastFocusedText=e.target.dataset.f==='delay'?lastFocusedText:e.target; }); });
+  leash.querySelectorAll('textarea:not([data-sms])').forEach(ta=>{}); // email enhance below
+  enhanceTextareas(leash);
+  requestAnimationFrame(()=>leash.querySelectorAll('.seg').forEach(syncGlider));
+}
+function syncGlider(seg){ const on=seg.querySelector('button.on'); const g=seg.querySelector('.glider'); if(on&&g){ g.style.left=on.offsetLeft+'px'; g.style.width=on.offsetWidth+'px'; } }
+function syncField(e){ const {i,f}=e.target.dataset; const st=campaigns[activeKey].steps[+i]; if(f==='subject')st.subject=e.target.value; if(f==='body'){ st.body=e.target.value; const ct=$('leash').querySelector(`[data-count="${i}"]`); if(ct)ct.textContent=smsCount(e.target.value); } if(f==='delay')st.delayDaysAfter=Math.max(1,parseInt(e.target.value)||1); }
+function moveStep(i,d){ const s=campaigns[activeKey].steps; const [x]=s.splice(i,1); s.splice(i+d,0,x); renderSteps(); scheduleDraft(); }
+function insertToken(tok){ const el=lastFocusedText; if(!el||!el.tagName){ toast('Click into a field first, then tap a token'); return; } const s=el.selectionStart,e=el.selectionEnd; el.value=el.value.slice(0,s)+tok+el.value.slice(e); el.dispatchEvent(new Event('input')); el.focus(); el.selectionStart=el.selectionEnd=s+tok.length; }
 
-  wrap.querySelectorAll('[data-ci]').forEach(el => {
-    const i = +el.dataset.ci, f = el.dataset.f;
-    el.addEventListener('input', () => {
-      c.customItems[i][f] = el.value;
-      if (f === 'mode') renderCustomItems();
-    });
-    el.addEventListener('focus', () => { if (el.tagName === 'TEXTAREA') lastFocusedText = el; });
-  });
-  wrap.querySelectorAll('[data-ci-remove]').forEach(btn => {
-    btn.onclick = () => { c.customItems.splice(+btn.dataset.ciRemove, 1); renderCustomItems(); };
-  });
+/* ── checklist editor (unchanged shape) ────────────────────────────── */
+function getPath(o,p){return p.split('.').reduce((a,k)=>(a||{})[k],o);}
+function setPath(o,p,v){const ks=p.split('.');let x=o;for(const k of ks.slice(0,-1)){if(typeof x[k]!=='object'||!x[k])x[k]={};x=x[k];}x[ks[ks.length-1]]=v;}
+function renderChecklist(){ const c=campaigns[activeKey]; renderCustomItems(); document.querySelectorAll('#checklistEd [data-cl]').forEach(el=>{ el.value=getPath(c,el.dataset.cl)??''; el.oninput=()=>{ const num=el.dataset.cl.startsWith('cadence.'); setPath(c,el.dataset.cl,num?(parseInt(el.value)||0):el.value); }; el.onfocus=()=>{ if(el.tagName==='TEXTAREA'||el.type==='text')lastFocusedText=el; }; }); setTimeout(()=>enhanceTextareas($('checklistEd')),0); }
+function renderCustomItems(){ const c=campaigns[activeKey]; c.customItems=c.customItems||[]; const wrap=$('customItems');
+  wrap.innerHTML=c.customItems.map((it,i)=>`<div style="border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:var(--paper)"><div class="row"><div class="field"><label>Item name</label><input type="text" data-ci="${i}" data-f="label" value="${esc(it.label||'')}"></div><div class="field"><label>Deal property</label><input type="text" class="mono" data-ci="${i}" data-f="property" value="${esc(it.property||'')}" style="font-size:12px"></div></div><div class="row"><div class="field"><label>Missing when…</label><select data-ci="${i}" data-f="mode" style="width:100%;padding:9px 11px;border:1.5px solid var(--line);border-radius:8px;font-size:13px;background:#fff"><option value="empty" ${(it.mode||'empty')==='empty'?'selected':''}>is empty</option><option value="equals" ${it.mode==='equals'?'selected':''}>is exactly…</option><option value="not_contains" ${it.mode==='not_contains'?'selected':''}>does not contain…</option></select></div><div class="field" style="display:${(it.mode==='equals'||it.mode==='not_contains')?'block':'none'}"><label>Value</label><input type="text" data-ci="${i}" data-f="value" value="${esc(it.value||'')}"></div></div><div class="field" style="margin-bottom:4px"><label>Email text while missing</label><textarea data-ci="${i}" data-f="block" style="min-height:52px">${esc(it.block||'')}</textarea></div><button class="btn btn-danger-ghost" data-cirm="${i}" style="padding:4px 0">Remove item</button></div>`).join('')||'<div class="empty" style="padding:6px 0">No custom items yet</div>';
+  wrap.querySelectorAll('[data-ci]').forEach(el=>{ const i=+el.dataset.ci,f=el.dataset.f; el.addEventListener('input',()=>{ c.customItems[i][f]=el.value; if(f==='mode')renderCustomItems(); }); el.addEventListener('focus',()=>{ if(el.tagName==='TEXTAREA')lastFocusedText=el; }); });
+  wrap.querySelectorAll('[data-cirm]').forEach(b=>b.onclick=()=>{ c.customItems.splice(+b.dataset.cirm,1); renderCustomItems(); });
   enhanceTextareas(wrap);
 }
 
-function renderChecklist() {
-  const c = campaigns[activeKey];
-  renderCustomItems();
-  setTimeout(() => enhanceTextareas(document.getElementById('checklistEd')), 0);
-  document.querySelectorAll('#checklistEd [data-cl]').forEach(el => {
-    el.value = getPath(c, el.dataset.cl) ?? '';
-    el.oninput = () => {
-      const isNum = el.dataset.cl.startsWith('cadence.');
-      setPath(c, el.dataset.cl, isNum ? (parseInt(el.value) || 0) : el.value);
-    };
-    el.onfocus = () => { if (el.tagName === 'TEXTAREA' || el.type === 'text') lastFocusedText = el; };
-  });
+/* ── save / create / delete / test ─────────────────────────────────── */
+async function save(){
+  const c=campaigns[activeKey]; c.label=$('campLabel').value.trim()||c.label; c.sendAs=$('campSendAs').value.trim(); if(!c.sendAs)delete c.sendAs;
+  $('saveBtn').disabled=true;
+  const res=await api('/api/campaigns',{method:'POST',body:JSON.stringify({key:activeKey,campaign:c})});
+  const data=await res.json(); $('saveBtn').disabled=false;
+  if(!res.ok)return toast(data.error||'Could not save','err');
+  campaigns=data.campaigns; localStorage.removeItem('dwm_draft_'+activeKey); $('draftNote').style.display='none';
+  toast('Saved — live within 5 minutes for due sends','ok'); renderTree();
+}
+function newStep(channel){ return channel==='sms' ? {channel:'sms',days:{weekday:true,weekend:true},delayDaysAfter:null,body:'Hi {{firstname}}, '} : {channel:'email',days:{weekday:true,weekend:true},delayDaysAfter:null,subject:'',body:'Hi {{firstname}},\n\n'}; }
+async function createCampaign(){
+  const name=$('newName').value.trim(); if(!name)return;
+  const key=name.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,40)||'seq_'+Date.now();
+  campaigns[key]={label:name,window:{startHour:9,endHour:16},steps:[newStep('email')]};
+  $('newModal').style.display='none'; $('newName').value=''; showEditor(key); toast('Draft created — write your first step, then Save');
+}
+async function deleteCampaign(){
+  const c=campaigns[activeKey]; if(!c)return;
+  if(!confirm(`Delete "${c.label}"? Contacts currently in it stop receiving messages.`))return;
+  const res=await api('/api/campaigns',{method:'DELETE',body:JSON.stringify({key:activeKey})});
+  const data=await res.json(); if(!res.ok)return toast(data.error||'Could not delete','err');
+  campaigns=data.campaigns; toast('Sequence deleted','ok'); showEditor('welcome');
+}
+async function sendTest(){
+  const as=$('testAs').value.trim(),to=$('testTo').value.trim(); if(!as||!to)return toast('Fill in both addresses','err');
+  localStorage.setItem('dw_test_as',as); localStorage.setItem('dw_test_to',to);
+  const c=campaigns[activeKey]; const step=c.type==='checklist'?(c.firstEmail||{}):(c.steps||[])[0];
+  if(!step){ toast('Nothing to test yet','err'); return; }
+  if(step.channel==='sms'){ toast('Step 1 is an SMS — test texts aren\u2019t supported here yet','err'); $('testModal').style.display='none'; return; }
+  if(!step.subject){ toast('Write the first email first','err'); return; }
+  $('testSendBtn').disabled=true;
+  const res=await (DEMO?Promise.resolve({ok:true,json:async()=>({ok:true})}):fetch('/api/test-send?secret='+encodeURIComponent(pw),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({as,to,subject:'[TEST] '+step.subject,body:step.body,senderName:'Dogwise Test'})}));
+  const data=await res.json(); $('testSendBtn').disabled=false; $('testModal').style.display='none';
+  toast(data.ok?'Test sent — check your inbox':'Test failed: '+(data.error||''),data.ok?'ok':'err');
 }
 
-function renderSteps() {
-  const c = campaigns[activeKey];
-  const isChecklist = c.type === 'checklist';
-  document.getElementById('checklistEd').style.display = isChecklist ? 'block' : 'none';
-  document.getElementById('leash').style.display = isChecklist ? 'none' : 'block';
-  document.getElementById('addStepBtn').style.display = isChecklist ? 'none' : 'block';
-  if (isChecklist) { renderChecklist(); document.getElementById('leash').innerHTML = ''; return; }
-  const leash = $('leash');
-  leash.innerHTML = '';
-  c.steps.forEach((step, i) => {
-    const card = document.createElement('div');
-    card.className = 'step-card';
-    card.innerHTML = `
-      <div class="step-head">
-        <h3>Email ${i + 1}${i === 0 ? ' — sent on enrollment' : ''}</h3>
-        <div class="step-tools">
-          ${i > 0 ? `<button class="icon-btn" title="Move up" onclick="moveStep(${i},-1)">↑</button>` : ''}
-          ${i < c.steps.length - 1 ? `<button class="icon-btn" title="Move down" onclick="moveStep(${i},1)">↓</button>` : ''}
-          ${c.steps.length > 1 ? `<button class="icon-btn" title="Remove" onclick="removeStep(${i})">✕</button>` : ''}
-        </div>
-      </div>
-      <div class="field">
-        <label>Subject line</label>
-        <input type="text" data-i="${i}" data-f="subject" value="${esc(step.subject)}">
-      </div>
-      <div class="field" style="margin-bottom:4px">
-        <label>Email body</label>
-        <textarea data-i="${i}" data-f="body">${esc(step.body)}</textarea>
-        <div class="tokens">${TOKENS.map(([t, d]) => `<span class="token" title="${d}" onclick="insertToken('${t}')">${t}</span>`).join('')}
-          <span class="token" title="Adds a styled button" onclick="insertToken('[[button:Book a call|https://your-link.com]]')">+ Button</span>
-          <span class="token" title="Shows a hosted image — paste the image URL" onclick="insertToken('![photo](https://your-image-url.jpg)')">+ Image</span>
-          <span class="token" title="Turns text into a link" onclick="insertToken('[link text](https://your-link.com)')">+ Link</span></div>
-      </div>`;
-    leash.appendChild(card);
-
-    if (i < c.steps.length - 1) {
-      const wait = document.createElement('div');
-      wait.className = 'wait-tag';
-      wait.innerHTML = `<span class="wait-pill">⏱ wait <input type="number" min="1" value="${step.delayDaysAfter ?? 2}" data-i="${i}" data-f="delay"> day(s), then send the next email</span>`;
-      leash.appendChild(wait);
-    }
-  });
-
-  leash.querySelectorAll('input[type=text], textarea').forEach(el => {
-    el.addEventListener('input', syncField);
-    el.addEventListener('focus', e => { if (e.target.dataset.f) lastFocusedText = e.target; });
-  });
-  leash.querySelectorAll('input[type=number]').forEach(el => el.addEventListener('input', syncField));
-  enhanceTextareas(leash);
+/* ── activity ──────────────────────────────────────────────────────── */
+let actCache=null,lastEvents=[];
+async function fetchActivity(){ const res=await api('/api/activity'); if(res.ok)actCache=await res.json(); return actCache; }
+function renderRail(key){ if(!actCache||!key)return; const s=(actCache.allTime?.perCampaign||{})[key]||{};
+  $('rStats').innerHTML=`<div><div class="n">${s.sent||0}</div><div class="l">Sent</div></div><div><div class="n a">${s.opened||0}</div><div class="l">Opened</div></div><div><div class="n g">${s.replied||0}</div><div class="l">Replied</div></div>`;
+  const evts=(actCache.events||[]).filter(e=>e.campaign===key).slice(0,30);
+  $('rFeed').innerHTML=evts.length?evts.map(e=>{ const d=new Date(e.t); return `<div class="evt"><span class="pill ${e.type}">${e.type}</span>${e.channel?`<span class="chan ${e.channel}">${e.channel}</span>`:''}<span class="who">${esc(e.contact||'')}</span><span class="when">${d.toLocaleDateString(undefined,{month:'short',day:'numeric'})}</span></div>`; }).join(''):'<div class="empty">No activity yet</div>';
 }
-
-function syncField(e) {
-  const { i, f } = e.target.dataset;
-  const step = campaigns[activeKey].steps[+i];
-  if (f === 'subject') step.subject = e.target.value;
-  if (f === 'body') step.body = e.target.value;
-  if (f === 'delay') step.delayDaysAfter = Math.max(1, parseInt(e.target.value) || 1);
-}
-
-function insertToken(tok) {
-  const el = lastFocusedText;
-  if (!el) { toast('Click into a subject or body first, then tap a token'); return; }
-  const start = el.selectionStart, end = el.selectionEnd;
-  el.value = el.value.slice(0, start) + tok + el.value.slice(end);
-  el.dispatchEvent(new Event('input'));
-  el.focus();
-  el.selectionStart = el.selectionEnd = start + tok.length;
-}
-
-function moveStep(i, dir) {
-  const steps = campaigns[activeKey].steps;
-  const [s] = steps.splice(i, 1);
-  steps.splice(i + dir, 0, s);
-  renderSteps();
-}
-
-function removeStep(i) {
-  campaigns[activeKey].steps.splice(i, 1);
-  renderSteps();
-}
-
-async function save() {
-  const c = campaigns[activeKey];
-  c.label = $('campLabel').value.trim() || c.label;
-  c.sendAs = $('campSendAs').value.trim();
-  if (!c.sendAs) delete c.sendAs;
-  $('saveBtn').disabled = true;
-  const res = await api('/api/campaigns', { method: 'POST', body: JSON.stringify({ key: activeKey, campaign: c }) });
-  const data = await res.json();
-  $('saveBtn').disabled = false;
-  if (!res.ok) return toast(data.error || 'Could not save', 'err');
-  campaigns = data.campaigns;
-  localStorage.removeItem('dwm_draft_' + activeKey);
-  const dn = document.getElementById('draftNote'); if (dn) dn.style.display = 'none';
-  toast('Saved — live within 30 minutes for due sends', 'ok');
-  selectCampaign(activeKey);
-}
-
-async function createCampaign() {
-  const name = $('newName').value.trim();
-  if (!name) return;
-  const key = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40) || 'campaign_' + Date.now();
-  campaigns[key] = {
-    label: name,
-    steps: [{ delayDaysAfter: null, subject: '', body: 'Hi {{firstname}},\n\n' }]
-  };
-  closeModal('newModal');
-  $('newName').value = '';
-  selectCampaign(key);
-  toast('Draft created — write your email, then Save');
-}
-
-async function deleteCampaign() {
-  if (!confirm(`Delete "${campaigns[activeKey].label}"? Contacts currently in it will stop receiving emails.`)) return;
-  const res = await api('/api/campaigns', { method: 'DELETE', body: JSON.stringify({ key: activeKey }) });
-  const data = await res.json();
-  if (!res.ok) return toast(data.error || 'Could not delete', 'err');
-  campaigns = data.campaigns;
-  toast('Campaign deleted', 'ok');
-  selectCampaign('welcome');
-}
-
-async function sendTest() {
-  const as = $('testAs').value.trim(), to = $('testTo').value.trim();
-  if (!as || !to) return toast('Fill in both addresses', 'err');
-  localStorage.setItem('dw_test_as', as); localStorage.setItem('dw_test_to', to);
-  const c0 = campaigns[activeKey];
-  const step = c0.type === 'checklist' ? (c0.firstEmail || {}) : (c0.steps || [])[0];
-  if (!step || !step.subject) { toast('Nothing to test yet — write the first email first', 'err'); $('testSendBtn').disabled = false; closeModal('testModal'); return; }
-  const fill = s => s.replace(/\{\{\s*firstname\s*\}\}/gi, 'Alex').replace(/\{\{\s*lastname\s*\}\}/gi, 'Sample').replace(/\{\{\s*email\s*\}\}/gi, encodeURIComponent($('testTo').value.trim()))
-    .replace(/\{\{\s*sender_firstname\s*\}\}/gi, 'Anita').replace(/\{\{\s*sender_lastname\s*\}\}/gi, 'Oliveira');
-  $('testSendBtn').disabled = true;
-  const res = await fetch('/api/test-send?secret=' + encodeURIComponent(pw), {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ as, to, subject: '[TEST] ' + fill(step.subject), body: fill(step.body), senderName: 'Dogwise Test' })
-  });
-  const data = await res.json();
-  $('testSendBtn').disabled = false;
-  closeModal('testModal');
-  if (data.ok) toast('Test sent — check your inbox ✉️', 'ok');
-  else toast(data.error || 'Test failed', 'err');
-}
-
-function closeModal(id) { $(id).style.display = 'none'; }
-function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
-
-$('loginBtn').onclick = login;
-$('pw').addEventListener('keydown', e => e.key === 'Enter' && login());
-$('saveBtn').onclick = save;
-$('newCampBtn').onclick = () => { $('newModal').style.display = 'flex'; $('newName').focus(); };
-$('createBtn').onclick = createCampaign;
-$('deleteBtn').onclick = deleteCampaign;
-$('addStepBtn').onclick = () => { const cc = campaigns[activeKey]; if (cc.type === 'checklist') return; (cc.steps = cc.steps || []).push({ delayDaysAfter: null, subject: '', body: 'Hi {{firstname}},\n\n' }); renderSteps(); };
-$('testBtn').onclick = () => {
-  $('testAs').value = localStorage.getItem('dw_test_as') || '';
-  $('testTo').value = localStorage.getItem('dw_test_to') || '';
-  $('testModal').style.display = 'flex';
-};
-$('testSendBtn').onclick = sendTest;
-document.querySelectorAll('.modal-bg').forEach(m => m.addEventListener('click', e => { if (e.target === m) m.style.display = 'none'; }));
-
-
-
-function showActivity() {
-  document.getElementById('editorView').style.display = 'none';
-  document.getElementById('activityView').style.display = 'block';
-  document.getElementById('campTitle').textContent = 'Activity';
-  document.getElementById('campSub').textContent = 'Live send / open / reply feed across all campaigns';
-  document.getElementById('campLabel').parentElement.parentElement.style.display = 'none';
-  document.getElementById('testBtn').style.display = 'none';
-  document.getElementById('saveBtn').style.display = 'none';
-  activeKey = null;
-  renderList();
-  loadActivity();
-}
-
-function showEditor(key) {
-  document.getElementById('activityView').style.display = 'none';
-  document.getElementById('editorView').style.display = 'grid';
-  document.getElementById('campLabel').parentElement.parentElement.style.display = 'flex';
-  document.getElementById('testBtn').style.display = 'inline-block';
-  document.getElementById('saveBtn').style.display = 'inline-block';
-  selectCampaign(key);
-}
-
-let actCache = null;
-async function fetchActivity() {
-  const res = await api('/api/activity');
-  if (res.ok) actCache = await res.json();
-  return actCache;
-}
-
-function renderCampSide(key) {
-  if (!actCache || !key) return;
-  const s = (actCache.allTime?.perCampaign || {})[key] || {};
-  document.getElementById('csStats').innerHTML =
-    `<div><div class="n">${s.sent || 0}</div><div class="l">Sent</div></div>
-     <div><div class="n amber">${s.opened || 0}</div><div class="l">Opened</div></div>
-     <div><div class="n green">${s.replied || 0}</div><div class="l">Replied</div></div>`;
-  const evts = (actCache.events || []).filter(e => e.campaign === key).slice(0, 30);
-  document.getElementById('csFeed').innerHTML = evts.length
-    ? evts.map(e => {
-        const d = new Date(e.t);
-        return `<div class="cs-evt"><span class="pill ${e.type}">${e.type}</span><span class="who">${esc(e.contact || '')}</span><span class="when">${d.toLocaleDateString(undefined,{month:'short',day:'numeric'})} ${d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'})}</span></div>`;
-      }).join('')
-    : '<div class="cs-empty">No activity yet for this campaign</div>';
-}
-
-async function loadActivity() {
-  const data = await fetchActivity();
-  if (!data) return;
-  const { events, stats, allTime } = data;
-  const at = (allTime && allTime.total) || {};
-
-  document.getElementById('statGrid').innerHTML = `
-    <div class="stat-card"><div class="big">${stats.today.sent}</div><div class="lbl">Sent today</div><div class="wk">${stats.week.sent} this week · ${at.sent || 0} all time</div></div>
-    <div class="stat-card"><div class="big amber">${stats.today.opened}</div><div class="lbl">Opened today</div><div class="wk">${stats.week.opened} this week · ${at.opened || 0} all time</div></div>
-    <div class="stat-card"><div class="big green">${stats.today.replied}</div><div class="lbl">Replied today</div><div class="wk">${stats.week.replied} this week · ${at.replied || 0} all time</div></div>
-    <div class="stat-card"><div class="big" style="color:${stats.today.errors ? '#C0392B' : '#9CA3AF'}">${stats.today.errors}</div><div class="lbl">Errors today</div><div class="wk">${stats.week.errors} this week</div></div>`;
-
-  // Per-campaign lifetime totals
-  const pc = (allTime && allTime.perCampaign) || {};
-  const rows = Object.entries(pc).map(([name, s]) => {
-    const openPct = s.sent ? Math.round((s.opened || 0) / s.sent * 100) : 0;
-    const replyPct = s.sent ? Math.round((s.replied || 0) / s.sent * 100) : 0;
-    return `<tr><td style="font-weight:600">${esc(name)}</td><td>${s.sent || 0}</td><td>${s.opened || 0} <span style="color:#9CA3AF">(${openPct}%)</span></td><td>${s.replied || 0} <span style="color:#9CA3AF">(${replyPct}%)</span></td></tr>`;
-  }).join('');
-  document.getElementById('campTotals').innerHTML = rows
-    ? `<table class="act-table"><thead><tr><th>Campaign — all time</th><th>Sent</th><th>Opened</th><th>Replied</th></tr></thead><tbody>${rows}</tbody></table>`
-    : '';
-
-  lastEvents = events;
-  const sel = document.getElementById('actFilter');
-  const cur = sel.value;
-  sel.innerHTML = '<option value="">All campaigns</option>' + Object.keys(campaigns).map(k => `<option value="${k}" ${k===cur?'selected':''}>${esc(campaigns[k].label || k)}</option>`).join('');
+async function loadActivity(){
+  const data=await fetchActivity(); if(!data)return; const {events,stats,allTime}=data; const at=(allTime&&allTime.total)||{};
+  $('statGrid').innerHTML=`
+    <div class="statcard"><div class="big">${stats.today.sent}</div><div class="lbl">Sent today</div><div class="wk">${stats.week.sent} this week · ${at.sent||0} all time</div></div>
+    <div class="statcard a"><div class="big">${stats.today.opened}</div><div class="lbl">Opened today</div><div class="wk">${stats.week.opened} this week · ${at.opened||0} all time</div></div>
+    <div class="statcard g"><div class="big">${stats.today.replied}</div><div class="lbl">Replied today</div><div class="wk">${stats.week.replied} this week · ${at.replied||0} all time</div></div>
+    <div class="statcard e"><div class="big">${stats.today.errors}</div><div class="lbl">Errors today</div><div class="wk">${stats.week.errors} this week</div></div>`;
+  const pc=(allTime&&allTime.perCampaign)||{};
+  const rows=Object.entries(pc).map(([k,s])=>{ const op=s.sent?Math.round((s.opened||0)/s.sent*100):0,rp=s.sent?Math.round((s.replied||0)/s.sent*100):0; return `<tr><td style="font-weight:600">${esc(campaigns[k]?.label||k)}</td><td>${s.sent||0}</td><td>${s.opened||0} <span style="color:var(--mute)">(${op}%)</span></td><td>${s.replied||0} <span style="color:var(--mute)">(${rp}%)</span></td></tr>`; }).join('');
+  $('campTotals').innerHTML=rows?`<div class="tablewrap"><table class="tbl"><thead><tr><th>Sequence · all time</th><th>Sent</th><th>Opened</th><th>Replied</th></tr></thead><tbody>${rows}</tbody></table></div>`:'';
+  lastEvents=events; const sel=$('actFilter'),cur=sel.value;
+  sel.innerHTML='<option value="">All sequences</option>'+Object.keys(campaigns).map(k=>`<option value="${k}" ${k===cur?'selected':''}>${esc(campaigns[k].label||k)}</option>`).join('');
   renderActRows();
 }
-
-let lastEvents = [];
-function renderActRows() {
-  const f = document.getElementById('actFilter').value;
-  const events = f ? lastEvents.filter(e => e.campaign === f) : lastEvents;
-  document.getElementById('actRows').innerHTML = events.map(e => {
-    const d = new Date(e.t);
-    const time = d.toLocaleDateString(undefined, {month:'short', day:'numeric'}) + ' ' + d.toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'});
-    return `<tr>
-      <td style="white-space:nowrap;color:#6B7280">${time}</td>
-      <td><span class="pill ${e.type}">${e.type}</span></td>
-      <td>${esc(e.contact || e.detail || '')}</td>
-      <td>${esc(e.campaign || '')}</td>
-      <td>${e.step || ''}</td>
-      <td style="color:#6B7280">${esc(e.sender || '')}</td>
-    </tr>`;
-  }).join('') || '<tr><td colspan="6" style="text-align:center;color:#9CA3AF;padding:24px">No activity yet — events appear here as emails send</td></tr>';
+function renderActRows(){ const f=$('actFilter').value; const ev=f?lastEvents.filter(e=>e.campaign===f):lastEvents;
+  $('actRows').innerHTML=ev.map(e=>{ const d=new Date(e.t); const time=d.toLocaleDateString(undefined,{month:'short',day:'numeric'})+' '+d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
+    return `<tr><td style="white-space:nowrap;color:var(--mute)">${time}</td><td><span class="pill ${e.type}">${e.type}</span> ${e.channel?`<span class="chan ${e.channel}">${e.channel}</span>`:''}</td><td>${esc(e.contact||e.detail||'')}</td><td>${esc(campaigns[e.campaign]?.label||e.campaign||'')}</td><td>${e.step||''}</td><td style="color:var(--mute)">${esc(e.sender||'')}</td></tr>`; }).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--mute);padding:26px">No activity yet — events appear here as messages send</td></tr>';
 }
 
-
-// ── Pro editor: client-side mirror of the server's email renderer (for live preview)
-function previewHtml(body) {
-  const escp = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  let x = escp(body);
-  x = x.replace(/\{\{\s*firstname\s*\}\}/gi,'Alex').replace(/\{\{\s*lastname\s*\}\}/gi,'Sample')
-       .replace(/\{\{\s*email\s*\}\}/gi,'alex%40example.com')
-       .replace(/\{\{\s*sender_firstname\s*\}\}/gi,'Anita').replace(/\{\{\s*sender_lastname\s*\}\}/gi,'Oliveira')
-       .replace(/\{\{\s*sender_booking_link\s*\}\}/gi, (appSettings.senderLinkFallback||'https://example.com/book'))
-       .replace(/\{\{\s*days_left\s*\}\}/gi,'5')
-       .replace(/\{\{\s*deal\.program_start_date\s*\}\}/gi,'Monday, August 17')
-       .replace(/\{\{\s*deal\.amount_outstanding\s*\}\}/gi,'$450.00')
-       .replace(/\{\{\s*deal\.remaining_balance_link\s*\}\}/gi,'https://pay.stripe.com/example')
-       .replace(/\{\{\s*deal\.dealname\s*\}\}/gi,'Sample Deal');
-  x = x.replace(/\[\[button:([^\|\]]*)\|([^\]]*)\]\]/g, (_,t,u)=> !u.trim() ? t.trim() : `<div style="margin:18px 0"><a href="${u.trim()}" target="_blank" style="background:#1B4F8A;color:#fff;padding:12px 26px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block;font-family:Arial">${t.trim()}</a></div>`);
-  x = x.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_,a,u)=>`<img src="${u.trim()}" alt="${a.trim()}" style="max-width:100%;border-radius:6px;margin:10px 0">`);
-  x = x.replace(/\[([^\]]+)\]\(([^)]*)\)/g, (_,t,u)=> u.trim() ? `<a href="${u.trim()}" target="_blank" style="color:#1B4F8A">${t.trim()}</a>` : t.trim());
-  x = x.replace(/\*\*([^*\n]+)\*\*/g,'<strong>$1</strong>').replace(/\*([^*\n]+)\*/g,'<em>$1</em>');
-  x = x.split(/\n{2,}/).map(p => {
-    if (p.trim()==='---') return '<hr style="border:none;border-top:1px solid #E3E9F0;margin:18px 0">';
-    const lines = p.split('\n');
-    if (lines.every(l => l.trim().startsWith('- ') || l.trim()==='')) {
-      return '<ul style="margin:0 0 14px;padding-left:22px">' + lines.filter(l=>l.trim().startsWith('- ')).map(l=>`<li style="margin:0 0 6px">${l.trim().slice(2)}</li>`).join('') + '</ul>';
-    }
-    return `<p style="margin:0 0 14px">${p.replace(/\n/g,'<br>')}</p>`;
-  }).join('');
-  return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#1E2A38;max-width:600px">${x}</div>`;
+/* ── settings: numbers + links ─────────────────────────────────────── */
+let appSettings={senderLinks:{},senderLinkFallback:'',smsNumbers:{}}, ownersCache=[], numbersCache=[], numbersConfigured=false;
+async function loadSettings(){ const res=await api('/api/settings'); if(res.ok)appSettings=await res.json(); }
+async function loadOwnersNumbers(){
+  const [o,n]=await Promise.all([api('/api/owners'),api('/api/openphone-numbers')]);
+  if(o.ok)ownersCache=(await o.json()).owners||[]; if(n.ok){ const d=await n.json(); numbersCache=d.numbers||[]; numbersConfigured=d.configured; }
+  await loadSettings(); renderNumbers(); renderLinks();
 }
-
-const EMOJIS = ['🐕','🐶','🦴','🐾','🎉','✅','☑️','📋','📝','💳','💉','📅','⏰','🏠','🚗','❤️','🙌','👋','😊','🌟','⭐','🔥','⚠️','📣','🎓','🍖','📸','💬','☀️','🎾','🛁','😴'];
-
-function wrapSelection(ta, before, after) {
-  const s = ta.selectionStart, e = ta.selectionEnd;
-  const sel = ta.value.slice(s, e) || 'text';
-  ta.value = ta.value.slice(0, s) + before + sel + after + ta.value.slice(e);
-  ta.dispatchEvent(new Event('input'));
-  ta.focus(); ta.selectionStart = s + before.length; ta.selectionEnd = s + before.length + sel.length;
+function numberField(pn){
+  // The number is the OpenPhone phone-number id (starts with PN…), pasted directly.
+  return `<input type="text" class="mono" data-f="pn" value="${esc(pn)}" placeholder="PNItsh7bWS">`;
 }
-function insertAtCursor(ta, text) {
-  const s = ta.selectionStart;
-  ta.value = ta.value.slice(0, s) + text + ta.value.slice(ta.selectionEnd);
-  ta.dispatchEvent(new Event('input'));
-  ta.focus(); ta.selectionStart = ta.selectionEnd = s + text.length;
+function ownerField(cur){
+  // Person resolves to a HubSpot owner ID. Pick by name (stores the id); fall back to a raw id box if owners didn't load.
+  if(!ownersCache.length) return `<input type="text" class="mono" data-f="oid" value="${esc(cur)}" placeholder="HubSpot owner ID">`;
+  return `<select data-f="oid"><option value="">Person…</option>${ownersCache.map(o=>`<option value="${o.id}" ${o.id===cur?'selected':''}>${esc(o.name)}</option>`).join('')}</select>`;
 }
-function closeEmojiPops() { document.querySelectorAll('.emoji-pop').forEach(p => p.remove()); }
+function ownerName(id){ const o=ownersCache.find(x=>x.id===id); return o?o.name:id; }
+function renderNumbers(){
+  const rows=[]; for(const [oid,byReg] of Object.entries(appSettings.smsNumbers||{})) for(const [region,pn] of Object.entries(byReg)) rows.push({oid,region,pn});
+  if(rows.length===0)rows.push({oid:'',region:'',pn:''});
+  const regionOpts=cur=>'<option value="">Region…</option>'+REGIONS.map(r=>`<option value="${r}" ${r===cur?'selected':''}>${r}</option>`).join('');
+  $('numbersBody').innerHTML=rows.map((r,i)=>`<div class="numrow">${ownerField(r.oid)}<select data-nr="${i}" data-f="region">${regionOpts(r.region)}</select>${numberField(r.pn)}<button class="ibtn" data-nrm="${i}" title="Remove"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>`).join('');
+  $('numbersBody').querySelectorAll('.numrow').forEach((row,i)=>{ row.querySelector('[data-f="pn"]').setAttribute('data-nr',i); });
+  $('numbersBody').querySelectorAll('[data-nrm]').forEach(b=>b.onclick=()=>b.closest('.numrow').remove());
+  const w=document.createElement('div'); w.className='hint'; w.style.marginTop='2px';
+  w.innerHTML='Number is the OpenPhone phone-number id — it starts with <code>PN</code> (e.g. <code>PNItsh7bWS</code>). Spaces are trimmed on save.';
+  $('numbersBody').appendChild(w);
+}
+$('addNumberBtn').onclick=()=>{ const div=document.createElement('div'); div.className='numrow';
+  const regionOpts='<option value="">Region…</option>'+REGIONS.map(r=>`<option value="${r}">${r}</option>`).join('');
+  div.innerHTML=`${ownerField('')}<select data-f="region">${regionOpts}</select>${numberField('')}<button class="ibtn" title="Remove"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>`;
+  div.querySelector('button').onclick=()=>div.remove(); $('numbersBody').appendChild(div);
+};
+$('saveNumbersBtn').onclick=async()=>{ const map={};
+  $('numbersBody').querySelectorAll('.numrow').forEach(row=>{ const oid=row.querySelector('[data-f="oid"]').value, region=row.querySelector('[data-f="region"]').value, pn=(row.querySelector('[data-f="pn"]').value||'').trim(); if(oid&&region&&pn){ (map[oid]=map[oid]||{})[region]=pn; } });
+  const res=await api('/api/settings',{method:'POST',body:JSON.stringify({smsNumbers:map})}); if(res.ok){ appSettings=await res.json(); toast('Numbers saved','ok'); renderNumbers(); } else toast('Could not save','err'); };
 
-/** Attach a formatting toolbar + preview toggle above every campaign-body textarea. */
-function enhanceTextareas(scope) {
-  scope.querySelectorAll('textarea').forEach(ta => {
-    if (ta.dataset.enhanced) return;
-    ta.dataset.enhanced = '1';
-    const bar = document.createElement('div');
-    bar.className = 'fmt-bar';
-    const mk = (label, title, fn) => { const b = document.createElement('button'); b.type='button'; b.className='fmt-btn'; b.textContent=label; b.title=title; b.onclick=(ev)=>{ev.preventDefault(); fn();}; return b; };
-    bar.appendChild(mk('B','Bold', () => wrapSelection(ta,'**','**')));
-    bar.appendChild(mk('I','Italic', () => wrapSelection(ta,'*','*')));
-    bar.appendChild(mk('• List','Bullet list', () => insertAtCursor(ta,'\n- ')));
-    bar.appendChild(mk('―','Divider line', () => insertAtCursor(ta,'\n\n---\n\n')));
-    const sep=document.createElement('div'); sep.className='fmt-sep'; bar.appendChild(sep);
-    bar.appendChild(mk('🔗','Link', () => wrapSelection(ta,'[','](https://your-link.com)')));
-    bar.appendChild(mk('🖼️','Image (paste a hosted image URL)', () => insertAtCursor(ta,'![photo](https://your-image-url.jpg)')));
-    bar.appendChild(mk('🔘','Button', () => insertAtCursor(ta,'[[button:Book a call|https://your-link.com]]')));
-    bar.appendChild(mk('📅','Sender booking link token', () => insertAtCursor(ta,'{{sender_booking_link}}')));
-    bar.appendChild(mk('😊','Emoji', () => {
-      closeEmojiPops();
-      const pop = document.createElement('div'); pop.className='emoji-pop';
-      EMOJIS.forEach(e => { const sp=document.createElement('span'); sp.textContent=e; sp.onclick=()=>{ insertAtCursor(ta,e); closeEmojiPops(); }; pop.appendChild(sp); });
-      bar.style.position='relative'; pop.style.top='34px'; pop.style.left='0'; bar.appendChild(pop);
-      setTimeout(()=>document.addEventListener('click', function h(ev){ if(!pop.contains(ev.target)){closeEmojiPops();document.removeEventListener('click',h);} }), 50);
-    }));
-    const sep2=document.createElement('div'); sep2.className='fmt-sep'; bar.appendChild(sep2);
-    const pvBtn = mk('👁 Preview','Toggle rendered preview', () => {
-      let pane = ta.parentElement.querySelector('.preview-pane');
-      if (pane) { pane.remove(); pvBtn.style.background=''; return; }
-      pane = document.createElement('div'); pane.className='preview-pane';
-      const render = () => pane.innerHTML = previewHtml(ta.value);
-      render();
-      ta.addEventListener('input', render);
-      ta.parentElement.appendChild(pane);
-      pvBtn.style.background='#fff';
-    });
-    bar.appendChild(pvBtn);
-    ta.parentElement.insertBefore(bar, ta);
-    ta.addEventListener('focus', () => { lastFocusedText = ta; });
+function renderLinks(){ const wrap=$('senderLinkRows'); const ent=Object.entries(appSettings.senderLinks||{}); if(!ent.length)ent.push(['','']);
+  wrap.innerHTML=ent.map(([em,url],i)=>`<div class="srow"><input type="text" placeholder="person@dogwiseacademy.com" value="${esc(em)}" data-f="email"><input type="text" placeholder="https://calendly.com/…" value="${esc(url)}" data-f="url"><button class="ibtn" title="Remove"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>`).join('');
+  $('fallbackLink').value=appSettings.senderLinkFallback||'';
+  wrap.querySelectorAll('.srow button').forEach(b=>b.onclick=()=>b.closest('.srow').remove());
+}
+$('addSenderLinkBtn').onclick=()=>{ const d=document.createElement('div'); d.className='srow'; d.innerHTML=`<input type="text" placeholder="person@dogwiseacademy.com" data-f="email"><input type="text" placeholder="https://calendly.com/…" data-f="url"><button class="ibtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>`; d.querySelector('button').onclick=()=>d.remove(); $('senderLinkRows').appendChild(d); };
+$('saveSettingsBtn').onclick=async()=>{ const links={}; $('senderLinkRows').querySelectorAll('.srow').forEach(r=>{ const em=r.querySelector('[data-f="email"]').value.trim(),url=r.querySelector('[data-f="url"]').value.trim(); if(em&&url)links[em]=url; }); const res=await api('/api/settings',{method:'POST',body:JSON.stringify({senderLinks:links,senderLinkFallback:$('fallbackLink').value.trim()})}); if(res.ok){ appSettings=await res.json(); toast('Booking links saved','ok'); } else toast('Could not save','err'); };
+$('addCustomItemBtn').onclick=()=>{ const c=campaigns[activeKey]; (c.customItems=c.customItems||[]).push({label:'',property:'',mode:'empty',value:'',block:''}); renderCustomItems(); };
+$('tabNumbers').onclick=()=>{ $('tabNumbers').classList.add('on'); $('tabLinks').classList.remove('on'); $('numbersCard').style.display='block'; $('linksCard').style.display='none'; };
+$('tabLinks').onclick=()=>{ $('tabLinks').classList.add('on'); $('tabNumbers').classList.remove('on'); $('linksCard').style.display='block'; $('numbersCard').style.display='none'; };
+
+/* ── rich text (email only) ────────────────────────────────────────── */
+const EMOJIS=['🐕','🐶','🦴','🐾','🎉','✅','☑️','📋','📝','💳','💉','📅','⏰','🏠','🚗','❤️','🙌','👋','😊','🌟','⭐','🔥','⚠️','📣','🎓','🍖','📸','💬','☀️','🎾','🛁','😴'];
+function wrapSel(ta,b,a){ const s=ta.selectionStart,e=ta.selectionEnd,sel=ta.value.slice(s,e)||'text'; ta.value=ta.value.slice(0,s)+b+sel+a+ta.value.slice(e); ta.dispatchEvent(new Event('input')); ta.focus(); ta.selectionStart=s+b.length; ta.selectionEnd=s+b.length+sel.length; }
+function insAt(ta,t){ const s=ta.selectionStart; ta.value=ta.value.slice(0,s)+t+ta.value.slice(ta.selectionEnd); ta.dispatchEvent(new Event('input')); ta.focus(); ta.selectionStart=ta.selectionEnd=s+t.length; }
+function closeEmoji(){ document.querySelectorAll('.emoji-pop').forEach(p=>p.remove()); }
+function previewHtml(body){ const e=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); let x=e(body);
+  x=x.replace(/\{\{\s*firstname\s*\}\}/gi,'Alex').replace(/\{\{\s*lastname\s*\}\}/gi,'Sample').replace(/\{\{\s*sender_firstname\s*\}\}/gi,'Anita').replace(/\{\{\s*sender_lastname\s*\}\}/gi,'Oliveira').replace(/\{\{\s*email\s*\}\}/gi,'alex%40example.com').replace(/\{\{\s*sender_booking_link\s*\}\}/gi,(appSettings.senderLinkFallback||'https://example.com/book')).replace(/\{\{\s*days_left\s*\}\}/gi,'5').replace(/\{\{\s*deal\.program_start_date\s*\}\}/gi,'Monday, August 17').replace(/\{\{\s*deal\.amount_outstanding\s*\}\}/gi,'$450.00').replace(/\{\{\s*deal\.remaining_balance_link\s*\}\}/gi,'https://pay.stripe.com/x');
+  x=x.replace(/\[\[button:([^\|\]]*)\|([^\]]*)\]\]/g,(_,t,u)=>!u.trim()?t.trim():`<div style="margin:16px 0"><a href="${u.trim()}" style="background:#1D4E89;color:#fff;padding:11px 24px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block">${t.trim()}</a></div>`);
+  x=x.replace(/!\[([^\]]*)\]\(([^)]+)\)/g,(_,a,u)=>`<img src="${u.trim()}" alt="${a.trim()}" style="max-width:100%;border-radius:6px;margin:8px 0">`);
+  x=x.replace(/\[([^\]]+)\]\(([^)]*)\)/g,(_,t,u)=>u.trim()?`<a href="${u.trim()}" style="color:#1D4E89">${t.trim()}</a>`:t.trim());
+  x=x.replace(/\*\*([^*\n]+)\*\*/g,'<strong>$1</strong>').replace(/\*([^*\n]+)\*/g,'<em>$1</em>');
+  x=x.split(/\n{2,}/).map(p=>{ if(p.trim()==='---')return '<hr style="border:none;border-top:1px solid #E3E9F0;margin:16px 0">'; const l=p.split('\n'); if(l.every(y=>y.trim().startsWith('- ')||y.trim()==='')) return '<ul style="margin:0 0 12px;padding-left:20px">'+l.filter(y=>y.trim().startsWith('- ')).map(y=>`<li style="margin:0 0 5px">${y.trim().slice(2)}</li>`).join('')+'</ul>'; return `<p style="margin:0 0 12px">${p.replace(/\n/g,'<br>')}</p>`; }).join('');
+  return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#1E2A38">${x}</div>`;
+}
+function enhanceTextareas(scope){
+  scope.querySelectorAll('textarea').forEach(ta=>{
+    if(ta.dataset.enhanced)return; if(ta.dataset.sms){ ta.addEventListener('focus',()=>lastFocusedText=ta); ta.dataset.enhanced='1'; return; }
+    ta.dataset.enhanced='1';
+    const bar=document.createElement('div'); bar.className='fmt-bar';
+    const mk=(l,t,fn)=>{ const b=document.createElement('button'); b.type='button'; b.className='fmt-btn'; b.innerHTML=l; b.title=t; b.onclick=ev=>{ev.preventDefault();fn();}; return b; };
+    bar.appendChild(mk('<b>B</b>','Bold',()=>wrapSel(ta,'**','**')));
+    bar.appendChild(mk('<i>I</i>','Italic',()=>wrapSel(ta,'*','*')));
+    bar.appendChild(mk('• List','Bullet list',()=>insAt(ta,'\n- ')));
+    bar.appendChild(mk('―','Divider',()=>insAt(ta,'\n\n---\n\n')));
+    const s1=document.createElement('div');s1.className='fmt-sep';bar.appendChild(s1);
+    bar.appendChild(mk('🔗','Link',()=>wrapSel(ta,'[','](https://your-link.com)')));
+    bar.appendChild(mk('🖼','Image URL',()=>insAt(ta,'![photo](https://your-image-url.jpg)')));
+    bar.appendChild(mk('🔘','Button',()=>insAt(ta,'[[button:Book a call|https://your-link.com]]')));
+    bar.appendChild(mk('📅','Booking-link token',()=>insAt(ta,'{{sender_booking_link}}')));
+    bar.appendChild(mk('😊','Emoji',()=>{ closeEmoji(); const pop=document.createElement('div'); pop.className='emoji-pop'; EMOJIS.forEach(e=>{ const sp=document.createElement('span'); sp.textContent=e; sp.onclick=()=>{insAt(ta,e);closeEmoji();}; pop.appendChild(sp); }); bar.style.position='relative'; pop.style.top='36px'; pop.style.left='0'; bar.appendChild(pop); setTimeout(()=>document.addEventListener('click',function h(ev){ if(!pop.contains(ev.target)){closeEmoji();document.removeEventListener('click',h);} }),50); }));
+    const s2=document.createElement('div');s2.className='fmt-sep';bar.appendChild(s2);
+    const pv=mk('👁 Preview','Toggle rendered preview',()=>{ let p=ta.parentElement.querySelector('.preview-pane'); if(p){p.remove();pv.style.background='';return;} p=document.createElement('div'); p.className='preview-pane'; const r=()=>p.innerHTML=previewHtml(ta.value); r(); ta.addEventListener('input',r); ta.parentElement.appendChild(p); pv.style.background='#fff'; });
+    bar.appendChild(pv);
+    ta.parentElement.insertBefore(bar,ta);
+    ta.addEventListener('focus',()=>lastFocusedText=ta);
   });
 }
 
-// ── Sender links settings
-let appSettings = { senderLinks: {}, senderLinkFallback: '' };
-
-async function loadSettings() {
-  const res = await api('/api/settings');
-  if (res.ok) appSettings = await res.json();
-}
-
-function renderSettingsModal() {
-  const wrap = $('senderLinkRows');
-  const entries = Object.entries(appSettings.senderLinks || {});
-  if (entries.length === 0) entries.push(['','']);
-  wrap.innerHTML = entries.map(([em, url], i) => `
-    <div class="settings-row">
-      <input type="text" placeholder="person@dogwiseacademy.com" value="${esc(em)}" data-sl="${i}" data-f="email">
-      <input type="text" placeholder="https://calendly.com/..." value="${esc(url)}" data-sl="${i}" data-f="url">
-      <button class="icon-btn" data-sl-remove="${i}" title="Remove">✕</button>
-    </div>`).join('');
-  $('fallbackLink').value = appSettings.senderLinkFallback || '';
-  wrap.querySelectorAll('[data-sl-remove]').forEach(b => b.onclick = () => { b.parentElement.remove(); });
-}
-
-$('settingsBtn').onclick = async () => { await loadSettings(); renderSettingsModal(); $('settingsModal').style.display='flex'; };
-$('addSenderLinkBtn').onclick = () => {
-  const div = document.createElement('div'); div.className='settings-row';
-  div.innerHTML = `<input type="text" placeholder="person@dogwiseacademy.com" data-f="email"><input type="text" placeholder="https://calendly.com/..." data-f="url"><button class="icon-btn" title="Remove">✕</button>`;
-  div.querySelector('button').onclick = () => div.remove();
-  $('senderLinkRows').appendChild(div);
-};
-$('saveSettingsBtn').onclick = async () => {
-  const links = {};
-  $('senderLinkRows').querySelectorAll('.settings-row').forEach(row => {
-    const em = row.querySelector('[data-f="email"]').value.trim();
-    const url = row.querySelector('[data-f="url"]').value.trim();
-    if (em && url) links[em] = url;
-  });
-  const res = await api('/api/settings', { method:'POST', body: JSON.stringify({ senderLinks: links, senderLinkFallback: $('fallbackLink').value.trim() }) });
-  if (res.ok) { appSettings = await res.json(); closeModal('settingsModal'); toast('Sender links saved','ok'); }
-  else toast('Could not save links','err');
-};
-
-document.getElementById('addCustomItemBtn').onclick = () => {
-  const c = campaigns[activeKey];
-  (c.customItems = c.customItems || []).push({ label: '', property: '', mode: 'empty', value: '', block: '' });
-  renderCustomItems();
-};
-
-document.getElementById('actFilter').addEventListener('change', renderActRows);
-document.getElementById('activityBtn').onclick = showActivity;
-
-setInterval(async () => {
-  await fetchActivity();
-  if (document.getElementById('activityView').style.display === 'block') loadActivity();
-  else if (activeKey) renderCampSide(activeKey);
-}, 30000);
-
-if (pw) login();
+/* ── window hour options + wiring + boot ───────────────────────────── */
+(function(){ const label=h=>h===24?'midnight':h===12?'noon':h===0?'12 am':h<12?h+' am':(h-12)+' pm'; let a='',b='';
+  for(let h=0;h<=24;h++){ a+=`<option value="${h}">${label(h)}</option>`; } $('winStart').innerHTML=a; $('winEnd').innerHTML=a; })();
+$('loginBtn').onclick=login; $('pw').addEventListener('keydown',e=>e.key==='Enter'&&login());
+$('saveBtn').onclick=save; $('deleteBtn').onclick=deleteCampaign;
+$('newCampBtn').onclick=()=>{ $('newModal').style.display='flex'; $('newName').focus(); };
+$('createBtn').onclick=createCampaign;
+$('newFolderBtn').onclick=createFolder;
+$('activityBtn').onclick=showActivity; $('settingsBtn').onclick=showSettings;
+$('testBtn').onclick=()=>{ $('testAs').value=localStorage.getItem('dw_test_as')||''; $('testTo').value=localStorage.getItem('dw_test_to')||''; $('testModal').style.display='flex'; };
+$('testSendBtn').onclick=sendTest;
+$('addStepBtn').onclick=()=>{ const c=campaigns[activeKey]; if(c.type==='checklist')return; (c.steps=c.steps||[]).push(newStep('email')); renderSteps(); scheduleDraft(); };
+$('actFilter').onchange=renderActRows;
+$('search').oninput=renderTree;
+document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).style.display='none');
+document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{ if(e.target===m)m.style.display='none'; }));
+window.addEventListener('resize',()=>document.querySelectorAll('.seg').forEach(syncGlider));
+setInterval(async()=>{ if(DEMO)return; await fetchActivity(); if(view==='activity')loadActivity(); else if(activeKey)renderRail(activeKey); },30000);
+if(DEMO||pw) login();
 </script>
 </body>
 </html>
