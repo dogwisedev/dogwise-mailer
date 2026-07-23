@@ -1,5 +1,5 @@
-// api/campaigns.js — dashboard API. GET list / POST upsert one / DELETE one.
-import { getCampaigns, saveCampaigns, storeConfigured } from '../lib/store.js';
+// api/campaigns.js — dashboard API. GET list (+ folders) / POST upsert one / DELETE one.
+import { getCampaigns, saveCampaigns, storeConfigured, getFolders } from '../lib/store.js';
 
 function authorized(req) {
   const auth = req.headers['authorization'] || '';
@@ -8,6 +8,7 @@ function authorized(req) {
 
 function validCampaign(c) {
   if (!c || typeof c.label !== 'string' || !c.label.trim()) return 'Campaign needs a name';
+
   if (c.type === 'checklist') {
     if (!c.firstEmail?.subject?.trim() || !c.firstEmail?.body?.trim()) return 'Checklist campaign needs the first email (subject + body)';
     for (const [i, item] of (c.customItems || []).entries()) {
@@ -18,13 +19,26 @@ function validCampaign(c) {
     }
     return null; // blocks/intros may be filled iteratively
   }
-  if (!Array.isArray(c.steps) || c.steps.length === 0) return 'Campaign needs at least one email';
+
+  if (!Array.isArray(c.steps) || c.steps.length === 0) return 'Campaign needs at least one step';
   if (c.sendAs && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.sendAs)) return 'Send-from must be a full email address (or blank for deal owner)';
+
+  // Per-sequence send window (optional; omitted => 9–16 in the recipient's timezone).
+  if (c.window) {
+    const { startHour, endHour } = c.window;
+    if (!Number.isInteger(startHour) || !Number.isInteger(endHour) || startHour < 0 || endHour > 24 || startHour >= endHour) {
+      return 'Send window must be whole hours with start before end (e.g. 9 to 16)';
+    }
+  }
+
   for (const [i, s] of c.steps.entries()) {
-    if (!s.subject?.trim()) return `Email ${i + 1} needs a subject`;
-    if (!s.body?.trim()) return `Email ${i + 1} needs a body`;
+    const channel = s.channel === 'sms' ? 'sms' : 'email';
+    const n = i + 1;
+    if (!s.body?.trim()) return `Step ${n} needs ${channel === 'sms' ? 'a message' : 'a body'}`;
+    if (channel === 'email' && !s.subject?.trim()) return `Email step ${n} needs a subject`;
+    if (s.days && !s.days.weekday && !s.days.weekend) return `Step ${n}: pick at least one of weekdays / weekends`;
     if (i < c.steps.length - 1 && (!Number.isFinite(s.delayDaysAfter) || s.delayDaysAfter < 1)) {
-      return `Email ${i + 1} needs a wait of at least 1 day before the next email`;
+      return `Step ${n} needs a wait of at least 1 day before the next step`;
     }
   }
   return null;
@@ -36,7 +50,8 @@ export default async function handler(req, res) {
   const campaigns = await getCampaigns();
 
   if (req.method === 'GET') {
-    return res.status(200).json({ campaigns, storeConfigured: storeConfigured() });
+    const folders = await getFolders();
+    return res.status(200).json({ campaigns, folders, storeConfigured: storeConfigured() });
   }
 
   if (req.method === 'POST') {
