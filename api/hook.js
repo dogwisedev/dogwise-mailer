@@ -4,11 +4,10 @@
 //   Method: POST  |  Retry on failure: ✓
 // Works with deal-based workflows (looks up associated contacts) or contact-based ones.
 import { getCampaigns } from '../lib/store.js';
-import { buildOwnerMap } from '../lib/hubspot.js';
+import { buildOwnerMap, CONTACT_PROPS } from '../lib/hubspot.js';
 import { processContact } from '../lib/process.js';
 
 const BASE = 'https://api.hubapi.com';
-const CONTACT_PROPS = 'email,firstname,lastname,dw_campaign,dw_campaign_step,dw_next_send,hs_email_optout';
 
 async function hs(path) {
   const res = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${process.env.HUBSPOT_TOKEN}` } });
