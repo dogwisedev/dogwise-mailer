@@ -574,100 +574,10 @@ table.tbl tr:hover td{background:#fafbfd}
 <div class="ctx" id="ctx"></div>
 <div class="toast" id="toast"></div>
 <script>
-/* ═══════════════════════════════════════════════════════════════════
-   PREVIEW BUILD. Runs on in-memory sample data so it renders anywhere.
-   To ship: set DEMO=false and the same api() calls hit the real backend.
-   ═══════════════════════════════════════════════════════════════════ */
-const DEMO = true;
+/* Production build — talks to the live /api/* backend. */
 const REGIONS = ['East Coast','Florida','Illinois','Texas','Colorado','West Coast'];
 
-/* ── sample data ────────────────────────────────────────────────── */
-const now = Date.now(), H = 3600000, D = 86400000;
-let DB = {
-  storeConfigured: true,
-  folders: [{id:'f_leads',name:'New leads'},{id:'f_nurture',name:'Nurture'},{id:'f_clients',name:'Client onboarding'}],
-  owners: [
-    {id:'75482998',name:'Alma Reyes',email:'alma@dogwiseacademy.com'},
-    {id:'89047041',name:'Emmalee Cruz',email:'emmalee@dogwiseacademy.com'},
-    {id:'89704240',name:'Kloie Banks',email:'kloie@dogwiseacademy.com'},
-    {id:'414684321',name:'Olivia Shah',email:'olivia@dogwiseacademy.com'},
-    {id:'681113136',name:'Ariane Dubois',email:'ariane@dogwiseacademy.com'},
-    {id:'anita',name:'Anita Oliveira',email:'anita@dogwiseacademy.com'}
-  ],
-  numbers: [
-    {id:'PNItsh7bWS',number:'+1 (212) 555-0142',name:'Alma · East'},
-    {id:'PNceGqLFha',number:'+1 (305) 555-0118',name:'Alma · Florida'},
-    {id:'PNEcKEoyHX',number:'+1 (415) 555-0173',name:'Alma · West'},
-    {id:'PNhk6l4DYO',number:'+1 (212) 555-0155',name:'Emmalee · East'},
-    {id:'PNgxmHZMTt',number:'+1 (212) 555-0164',name:'Kloie · East'},
-    {id:'PNCVRsFSYc',number:'+1 (212) 555-0177',name:'Olivia · East'},
-    {id:'PNdBXv8eHM',number:'+1 (212) 555-0188',name:'Ariane · East'}
-  ],
-  settings: {
-    senderLinks:{'anita@dogwiseacademy.com':'https://calendly.com/anita-dogwise'},
-    senderLinkFallback:'https://dogwiseacademy.com/book',
-    smsNumbers:{'75482998':{'East Coast':'PNItsh7bWS','Florida':'PNceGqLFha','West Coast':'PNEcKEoyHX'},'89047041':{'East Coast':'PNhk6l4DYO'}}
-  },
-  campaigns: {
-    welcome:{label:'Welcome email (new leads)',steps:[{channel:'email',delayDaysAfter:null,subject:'Welcome to Dogwise, {{firstname}}! 🐕',body:"Hi {{firstname}},\n\nThanks for reaching out to Dogwise Academy! I saw your inquiry come in and wanted to introduce myself — I'll be your point of contact here.\n\nOur board-and-train programs are built around one idea: real training happens in real life. I'd love to hear more about your dog.\n\nDo you have 10 minutes this week for a quick call?\n\nBest,\n{{sender_firstname}}"}]},
-    first_contact:{label:'First contact — text then email',folder:'f_leads',stopIfCalled:true,window:{startHour:9,endHour:16},steps:[
-      {channel:'sms',days:{weekday:true,weekend:true},delayDaysAfter:1,body:"Hi {{firstname}}! {{sender_firstname}} from Dogwise Academy here. Saw your request come in — when's a good time for a quick call? Happy to text too."},
-      {channel:'email',days:{weekday:true,weekend:false},delayDaysAfter:null,subject:'Following up on {{firstname}}\u2019s training 🐾',body:"Hi {{firstname}},\n\nJust circling back in case a text is easy to miss. Whenever you've got a few minutes, I'd love to hear what you're hoping to work on.\n\n{{sender_firstname}}"}
-    ]},
-    reengage:{label:'Re-engagement (cold leads)',folder:'f_nurture',window:{startHour:9,endHour:17},steps:[
-      {channel:'email',days:{weekday:true,weekend:true},delayDaysAfter:3,subject:'Still thinking it over, {{firstname}}?',body:"Hi {{firstname}},\n\nNo rush at all — just wanted to keep the door open. Reply any time and we'll pick up where we left off."},
-      {channel:'email',days:{weekday:true,weekend:false},delayDaysAfter:4,subject:'A quick before/after that might help',body:"Hi {{firstname}},\n\nHere's a short clip of a board-and-train graduate who came in with the same challenges you mentioned.\n\n[[button:Watch the 90-second clip|https://dogwiseacademy.com/results]]"},
-      {channel:'sms',days:{weekday:true,weekend:false},delayDaysAfter:null,body:"Hi {{firstname}}, {{sender_firstname}} here — still happy to help whenever the timing's right. Just text back and we'll sort it out."}
-    ]},
-    onboarding:{label:'Onboarding checklist (Closed Won)',type:'checklist',folder:'f_clients',sendAs:'anita@dogwiseacademy.com',
-      cadence:{relaxedDays:4,approachingDays:2,urgentDays:1,approachingThreshold:13,urgentThreshold:2},
-      firstEmail:{subject:"Welcome to Dogwise, {{firstname}}! Let's get everything ready 🎉",body:"Hi {{firstname}},\n\nI'm Anita, and I'll help you get set up before the start date — {{deal.program_start_date}}. Any questions, just reply."},
-      checklistLeadIn:"Here's what we still need before {{deal.program_start_date}}:",
-      intros:{relaxed:{subject:'Getting ready for {{deal.program_start_date}}',body:"Hi {{firstname}},\n\nA friendly check-in — a couple of items still outstanding:"},approaching:{subject:'{{days_left}} days to go',body:"Hi {{firstname}},\n\nWe're {{days_left}} days out. Still need:"},urgent:{subject:'Needed before {{deal.program_start_date}}',body:"Hi {{firstname}},\n\nStart date's almost here and we still need the below:"}},
-      blocks:{intake_form:'📋 Client intake form: [Complete it here](https://share.hsforms.com/x?email={{email}})',manager_form:'📝 Training management form: [Complete it here](https://share.hsforms.com/y?email={{email}})',balance:'💳 Remaining balance of {{deal.amount_outstanding}}:\n[[button:Pay balance|{{deal.remaining_balance_link}}]]',vaccine_dhlpp:'💉 DHLPP record — reply with a photo/scan.',vaccine_bordetella:'💉 Bordetella record — reply with a photo/scan.',vaccine_rabies:'💉 Rabies record — reply with a photo/scan.'},
-      customItems:[],
-      signoff:"Thanks so much — reply any time!\n\nWarmly,\n{{sender_firstname}}\nDogwise Academy"}
-  },
-  activity: (()=>{ const e=[
-    ['sent','sms','jess.turner@gmail.com','first_contact',1,'alma@dogwiseacademy.com',0.6*H],
-    ['replied','sms','+1 (305) 555-0198','first_contact',1,'alma@dogwiseacademy.com',1.4*H],
-    ['opened','email','mark.davies@outlook.com','reengage',2,'olivia@dogwiseacademy.com',2.2*H],
-    ['sent','email','priya.n@gmail.com','reengage',1,'olivia@dogwiseacademy.com',3.1*H],
-    ['sent','email','h.becker@web.de','welcome',1,'kloie@dogwiseacademy.com',5*H],
-    ['opened','email','h.becker@web.de','welcome',1,'kloie@dogwiseacademy.com',5.4*H],
-    ['sent','sms','+1 (212) 555-0231','first_contact',1,'emmalee@dogwiseacademy.com',26*H],
-    ['skipped','sms','a.romano@gmail.com','first_contact',1,'alma@dogwiseacademy.com',27*H],
-    ['error','email','bad-address@','reengage',2,'olivia@dogwiseacademy.com',30*H],
-    ['replied','email','sofia.lang@gmx.net','reengage',3,'ariane@dogwiseacademy.com',52*H]
-  ]; return e.map(([type,channel,contact,campaign,step,sender,ago])=>({t:now-ago,type,channel,contact,campaign,step,sender})); })(),
-  allTime:{total:{sent:1284,opened:642,replied:203,error:11},perCampaign:{first_contact:{sent:540,opened:0,replied:96},reengage:{sent:602,opened:410,replied:88},welcome:{sent:142,opened:98,replied:19}}}
-};
-
-/* ── mock API (mirrors the real endpoints) ─────────────────────────── */
-async function mockApi(path,opts={}){
-  await new Promise(r=>setTimeout(r,120));
-  const body = opts.body ? JSON.parse(opts.body) : {};
-  const ok = d => ({ok:true,status:200,json:async()=>d});
-  if(path==='/api/campaigns'){
-    if(opts.method==='POST'){ DB.campaigns[body.key]=body.campaign; return ok({ok:true,campaigns:DB.campaigns}); }
-    if(opts.method==='DELETE'){ delete DB.campaigns[body.key]; return ok({ok:true,campaigns:DB.campaigns}); }
-    return ok({campaigns:DB.campaigns,folders:DB.folders,storeConfigured:true});
-  }
-  if(path==='/api/folders'){ if(opts.method==='POST'){ DB.folders=body.folders; } return ok({folders:DB.folders}); }
-  if(path==='/api/owners') return ok({owners:DB.owners});
-  if(path==='/api/openphone-numbers') return ok({configured:true,numbers:DB.numbers});
-  if(path==='/api/settings'){ if(opts.method==='POST'){ DB.settings={...DB.settings,...body}; } return ok(DB.settings); }
-  if(path==='/api/activity'){
-    const s=DB.activity, startDay=new Date(); startDay.setHours(0,0,0,0);
-    const c=(t,since)=>s.filter(e=>e.type===t&&e.t>=since).length;
-    return ok({events:s,allTime:DB.allTime,stats:{
-      today:{sent:c('sent',startDay.getTime()),opened:c('opened',startDay.getTime()),replied:c('replied',startDay.getTime()),errors:c('error',startDay.getTime())},
-      week:{sent:c('sent',now-7*D),opened:c('opened',now-7*D),replied:c('replied',now-7*D),errors:c('error',now-7*D)}
-    }});
-  }
-  return ok({ok:true});
-}
-function api(path,opts={}){ return DEMO ? mockApi(path,opts) : fetch(path,{...opts,headers:{'Authorization':'Bearer '+pw,'Content-Type':'application/json',...(opts.headers||{})}}); }
+function api(path,opts={}){ return fetch(path,{...opts,headers:{'Authorization':'Bearer '+pw,'Content-Type':'application/json',...(opts.headers||{})}}); }
 
 /* ── helpers ───────────────────────────────────────────────────────── */
 const $ = id => document.getElementById(id);
@@ -684,13 +594,18 @@ let pw = sessionStorage.getItem('dw_pw')||'', campaigns={}, folders=[], activeKe
 
 /* ── login ─────────────────────────────────────────────────────────── */
 async function login(){
-  pw = DEMO ? 'demo' : $('pw').value.trim();
-  const res = await api('/api/campaigns');
-  if(res.status===401){ $('gateErr').style.display='block'; return; }
+  const entered = $('pw').value.trim();
+  if(entered) pw = entered;
+  if(!pw){ $('pw').focus(); return; }
+  let res;
+  try { res = await api('/api/campaigns'); }
+  catch(e){ toast('Network error — check your connection and try again','err'); return; }
+  if(res.status===401){ pw=''; sessionStorage.removeItem('dw_pw'); $('gateErr').style.display='block'; $('pw').value=''; return; }
   const data = await res.json();
   sessionStorage.setItem('dw_pw',pw);
   campaigns = data.campaigns||{}; folders = data.folders||[];
   $('storeBanner').style.display = data.storeConfigured ? 'none':'block';
+  $('gateErr').style.display='none';
   $('gate').style.display='none'; $('app').classList.add('on');
   loadSettings();
   showEditor(campaigns['welcome']?'welcome':Object.keys(campaigns)[0]);
@@ -978,7 +893,7 @@ async function sendTest(){
   if(step.channel==='sms'){ toast('Step 1 is an SMS — test texts aren\u2019t supported here yet','err'); $('testModal').style.display='none'; return; }
   if(!step.subject){ toast('Write the first email first','err'); return; }
   $('testSendBtn').disabled=true;
-  const res=await (DEMO?Promise.resolve({ok:true,json:async()=>({ok:true})}):fetch('/api/test-send?secret='+encodeURIComponent(pw),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({as,to,subject:'[TEST] '+step.subject,body:step.body,senderName:'Dogwise Test'})}));
+  const res=await fetch('/api/test-send?secret='+encodeURIComponent(pw),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({as,to,subject:'[TEST] '+step.subject,body:step.body,senderName:'Dogwise Test'})});
   const data=await res.json(); $('testSendBtn').disabled=false; $('testModal').style.display='none';
   toast(data.ok?'Test sent — check your inbox':'Test failed: '+(data.error||''),data.ok?'ok':'err');
 }
@@ -1114,8 +1029,8 @@ $('search').oninput=renderTree;
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).style.display='none');
 document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{ if(e.target===m)m.style.display='none'; }));
 window.addEventListener('resize',()=>document.querySelectorAll('.seg').forEach(syncGlider));
-setInterval(async()=>{ if(DEMO)return; await fetchActivity(); if(view==='activity')loadActivity(); else if(activeKey)renderRail(activeKey); },30000);
-if(DEMO||pw) login();
+setInterval(async()=>{ await fetchActivity(); if(view==='activity')loadActivity(); else if(activeKey)renderRail(activeKey); },30000);
+if(pw) login();
 </script>
 </body>
 </html>
