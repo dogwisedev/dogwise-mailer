@@ -4,7 +4,9 @@ import { getDueContacts, buildOwnerMap, getContactLive, getWaitingContacts, getC
 import { processContact } from '../lib/process.js';
 import { hasMailFrom } from '../lib/gmail.js';
 import { logEvent, bumpStat, getLastSend, shouldReplyCheck } from '../lib/activity.js';
-import { inSendWindow } from '../lib/util.js';
+// NOTE: the send window is no longer global — it's per-campaign and evaluated in each
+// recipient's timezone inside processContact(). The old global gate has been removed so
+// it can't block, say, a Colorado lead at 6pm ET across the whole run.
 
 const MAX_PER_RUN = parseInt(process.env.MAX_PER_RUN || '40', 10);
 
@@ -13,10 +15,6 @@ export default async function handler(req, res) {
   const auth = req.headers['authorization'] || '';
   if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).json({ error: 'unauthorized' });
-  }
-
-  if (!inSendWindow()) {
-    return res.status(200).json({ skipped: true, reason: 'outside send window' });
   }
 
   const summary = { sent: 0, deferred: 0, completed: 0, errors: [] };
