@@ -37,8 +37,10 @@ function validCampaign(c) {
     if (!s.body?.trim()) return `Step ${n} needs ${channel === 'sms' ? 'a message' : 'a body'}`;
     if (channel === 'email' && !s.subject?.trim()) return `Email step ${n} needs a subject`;
     if (s.days && !s.days.weekday && !s.days.weekend) return `Step ${n}: pick at least one of weekdays / weekends`;
-    if (i < c.steps.length - 1 && (!Number.isFinite(s.delayDaysAfter) || s.delayDaysAfter < 1)) {
-      return `Step ${n} needs a wait of at least 1 day before the next step`;
+    
+    // CHANGED: Allow 0 or decimals (waitDaysAfter < 0 instead of < 1)
+    if (i < c.steps.length - 1 && (!Number.isFinite(s.delayDaysAfter) || s.delayDaysAfter < 0)) {
+      return `Step ${n} wait time cannot be negative`;
     }
   }
   return null;
