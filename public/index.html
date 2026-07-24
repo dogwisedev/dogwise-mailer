@@ -829,7 +829,7 @@ function renderSteps(){
     leash.appendChild(wrap);
     if(i<c.steps.length-1){
       const tie=document.createElement('div'); tie.className='tie';
-      tie.innerHTML=`<span class="buckle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>wait <input type="number" min="1" value="${step.delayDaysAfter??2}" data-i="${i}" data-f="delay"> day(s)</span>`;
+      tie.innerHTML=`<span class="buckle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>wait <input type="number" min="0" value="${step.delayDaysAfter ?? 0}" data-i="${i}" data-f="delay"> day(s)</span>`;
       leash.appendChild(tie);
     }
   });
@@ -846,7 +846,10 @@ function renderSteps(){
   requestAnimationFrame(()=>leash.querySelectorAll('.seg').forEach(syncGlider));
 }
 function syncGlider(seg){ const on=seg.querySelector('button.on'); const g=seg.querySelector('.glider'); if(on&&g){ g.style.left=on.offsetLeft+'px'; g.style.width=on.offsetWidth+'px'; } }
-function syncField(e){ const {i,f}=e.target.dataset; const st=campaigns[activeKey].steps[+i]; if(f==='subject')st.subject=e.target.value; if(f==='body'){ st.body=e.target.value; const ct=$('leash').querySelector(`[data-count="${i}"]`); if(ct)ct.textContent=smsCount(e.target.value); } if(f==='delay')st.delayDaysAfter=Math.max(1,parseInt(e.target.value)||1); }
+function syncField(e){ const {i,f}=e.target.dataset; const st=campaigns[activeKey].steps[+i]; if(f==='subject')st.subject=e.target.value; if(f==='body'){ st.body=e.target.value; const ct=$('leash').querySelector(`[data-count="${i}"]`); if(ct)ct.textContent=smsCount(e.target.value); } if(f==='delay') {
+  const val = parseInt(e.target.value);
+  st.delayDaysAfter = isNaN(val) ? 0 : Math.max(0, val);
+} }
 function moveStep(i,d){ const s=campaigns[activeKey].steps; const [x]=s.splice(i,1); s.splice(i+d,0,x); renderSteps(); scheduleDraft(); }
 function insertToken(tok){ const el=lastFocusedText; if(!el||!el.tagName){ toast('Click into a field first, then tap a token'); return; } const s=el.selectionStart,e=el.selectionEnd; el.value=el.value.slice(0,s)+tok+el.value.slice(e); el.dispatchEvent(new Event('input')); el.focus(); el.selectionStart=el.selectionEnd=s+tok.length; }
 
