@@ -186,6 +186,49 @@
   });
   editor.setComponents(STARTER);
 
+  // ── custom AI import button ───────────────────────────────────────────────
+  editor.Panels.addButton('options', {
+    id: 'import-html',
+    className: 'fa fa-code', // Uses GrapesJS's built-in icon font
+    command: 'open-html-import',
+    attributes: { title: 'Import AI HTML' }
+  });
+
+  editor.Commands.add('open-html-import', {
+    run: function(editor, sender) {
+      if (sender) sender.set('active', 0);
+      var modal = editor.Modal;
+      var content = document.createElement('div');
+      
+      content.innerHTML = 
+        '<div style="padding: 10px; display: flex; flex-direction: column; gap: 14px;">' +
+          '<h3 style="margin: 0; font-size: 18px; color: var(--ink);">Import HTML from AI</h3>' +
+          '<p style="margin: 0; font-size: 13px; color: var(--slate);">Paste your AI-generated HTML code below to load it straight into the canvas:</p>' +
+          '<textarea id="ai-html-input" placeholder="<html>...</html>" style="width: 100%; height: 280px; font-family: ui-monospace, monospace; font-size: 12px; padding: 12px; border: 1.5px solid var(--line); border-radius: 8px; box-sizing: border-box; outline: none;"></textarea>' +
+          '<button id="ai-html-submit" class="btn btn-brass" style="align-self: flex-end;">Load into Editor</button>' +
+        '</div>';
+      
+      modal.setTitle('Import Custom HTML');
+      modal.setContent(content);
+      modal.open();
+
+      // Focus the textarea for easy pasting
+      setTimeout(function() {
+        var input = document.getElementById('ai-html-input');
+        if (input) input.focus();
+      }, 100);
+
+      document.getElementById('ai-html-submit').onclick = function() {
+        var htmlCode = document.getElementById('ai-html-input').value;
+        if (htmlCode.trim()) {
+          editor.setComponents(htmlCode);
+          modal.close();
+          toast('AI template loaded successfully', 'ok');
+        }
+      };
+    }
+  });
+
   // ── personalization tokens ────────────────────────────────────────────────
   var TOKENS = ['{{firstname}}','{{lastname}}','{{email}}','{{sender_firstname}}','{{sender_lastname}}','{{sender_booking_link}}'];
   TOKENS.forEach(function(t){
