@@ -401,6 +401,29 @@ table.tbl tr:hover td{background:#fafbfd}
 @media (max-width:1080px){.ed{grid-template-columns:1fr}.rail{position:static}.statgrid{grid-template-columns:repeat(2,1fr)}}
 @media (max-width:760px){.app.on{grid-template-columns:1fr}.side{display:none}.wrap{padding:18px 16px 50px}.row,.meta .row3{grid-template-columns:1fr}.head{flex-direction:column;align-items:flex-start}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ══ marketing design picker ══ */
+.designpick{display:flex;align-items:center;gap:14px;padding:13px 15px;border:1.5px solid var(--line);
+  border-radius:var(--r-sm);background:linear-gradient(150deg,var(--brass-wash),#fff)}
+.designpick .dp-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.designpick .dp-body strong{font-size:13.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.designpick .dp-body span{font-size:11.5px;color:var(--mute)}
+.designpick .dp-actions{display:flex;gap:8px;flex-shrink:0}
+.designpick .btn{padding:7px 13px;font-size:12px}
+.dlist{display:flex;flex-direction:column;gap:7px;max-height:44vh;overflow:auto;margin:0 -4px;padding:0 4px}
+.dlist .empty{color:var(--mute);font-size:13px;text-align:center;padding:26px 0;line-height:1.7}
+.drow{display:flex;align-items:center;gap:12px;padding:11px 13px;border:1.5px solid var(--line);
+  border-radius:var(--r-sm);background:#fff;cursor:pointer;transition:.14s;text-align:left;width:100%}
+.drow:hover{border-color:var(--brass);background:var(--brass-wash)}
+.drow.on{border-color:var(--brass);background:var(--brass-wash);box-shadow:var(--sh-1)}
+.drow .dr-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.drow .dr-main strong{font-size:13.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.drow .dr-main span{font-size:11px;color:var(--mute)}
+.drow .dr-score{font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;flex-shrink:0;font-family:'JetBrains Mono'}
+.drow .dr-score.good{background:#e6f4ea;color:var(--sent)}
+.drow .dr-score.warn{background:var(--brass-wash);color:var(--brass-deep)}
+.drow .dr-score.bad{background:#fdeceb;color:var(--err)}
+.seg.is-design .glider{background:linear-gradient(150deg,var(--brass-hi),var(--brass))}
 </style>
 </head>
 <body>
@@ -570,6 +593,17 @@ table.tbl tr:hover td{background:#fafbfd}
   <div class="modal-actions"><button class="btn btn-ghost" data-close="testModal">Cancel</button><button class="btn btn-brass" id="testSendBtn">Send test</button></div>
 </div></div>
 
+<!-- ══ DESIGN PICKER ══ -->
+<div class="modal-bg" id="designModal"><div class="modal">
+  <h3>Choose a design</h3>
+  <div class="sub">Marketing designs are built in the drag-and-drop builder. They're shared, so the same design can be used by more than one sequence.</div>
+  <div class="dlist" id="designList"></div>
+  <div class="modal-actions">
+    <button class="btn btn-ghost" data-close="designModal">Cancel</button>
+    <button class="btn btn-brass" id="designNewBtn">Build a new one</button>
+  </div>
+</div></div>
+
 <!-- ══ CONTEXT MENU ══ -->
 <div class="ctx" id="ctx"></div>
 <div class="toast" id="toast"></div>
@@ -585,6 +619,7 @@ function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replac
 const ICONS = {
   email:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>',
   sms:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-3.7-.7L3 21l1.3-4a8.4 8.4 0 0 1-.8-3.5A8.4 8.4 0 0 1 12 5a8.4 8.4 0 0 1 9 6.5Z"/></svg>',
+  spark:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M4.9 4.9 7 7M17 17l2.1 2.1M3 12h3M18 12h3M4.9 19.1 7 17M17 7l2.1-2.1"/><circle cx="12" cy="12" r="3"/></svg>',
   check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
   pin:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 4v6L7 13v2h4v6l1 1 1-1v-6h4v-2l-2-3V4z"/></svg>'
 };
@@ -608,8 +643,73 @@ async function login(){
   $('gateErr').style.display='none';
   $('gate').style.display='none'; $('app').classList.add('on');
   loadSettings();
+  loadDesigns();
   showEditor(campaigns['welcome']?'welcome':Object.keys(campaigns)[0]);
 }
+
+/* ── Marketing designs ─────────────────────────────────────────────────── */
+let designIndex=[];
+let designTarget=null;
+
+async function loadDesigns(){
+  try{ const r=await api('/api/designs'); if(r.ok) designIndex=(await r.json()).designs||[]; }
+  catch(e){ /* picker just renders empty */ }
+}
+function designName(id){ const d=designIndex.find(x=>x.id===id); return d?d.name:id; }
+function scoreClass(s){ return s==null?'':(s>=85?'good':s>=70?'warn':'bad'); }
+function relTime(ts){
+  if(!ts) return '';
+  const m=Math.floor((Date.now()-ts)/60000);
+  if(m<1) return 'just now';
+  if(m<60) return m+'m ago';
+  const h=Math.floor(m/60); if(h<24) return h+'h ago';
+  const d=Math.floor(h/24); return d===1?'yesterday':d+'d ago';
+}
+function openDesignModal(stepIndex){
+  designTarget=stepIndex; renderDesignList();
+  $('designModal').style.display='flex';
+  loadDesigns().then(renderDesignList);
+}
+function renderDesignList(){
+  const cur=designTarget!=null?(campaigns[activeKey].steps[designTarget]||{}).designId:null;
+  const box=$('designList');
+  if(!designIndex.length){
+    box.innerHTML='<div class="empty">No designs saved yet.<br>Hit <b>Build a new one</b> to open the builder.</div>';
+    return;
+  }
+  box.innerHTML=designIndex.map(d=>`
+    <button class="drow ${d.id===cur?'on':''}" data-pick="${esc(d.id)}">
+      <div class="dr-main">
+        <strong>${esc(d.name)}</strong>
+        <span>${esc(d.id)} \u00b7 edited ${relTime(d.updatedAt)}</span>
+      </div>
+      ${d.score!=null?`<span class="dr-score ${scoreClass(d.score)}" title="Deliverability preflight score">${d.score}</span>`:''}
+    </button>`).join('');
+  box.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>chooseDesign(b.dataset.pick));
+}
+function chooseDesign(id){
+  if(designTarget==null) return;
+  const i=designTarget, st=campaigns[activeKey].steps[i];
+  st.channel='email'; st.format='design'; st.designId=id;
+  $('designModal').style.display='none'; designTarget=null;
+  renderSteps(); scheduleDraft();
+  toast('Design "'+designName(id)+'" attached to step '+(i+1),'ok');
+}
+function openBuilder(stepIndex){
+  const st=campaigns[activeKey].steps[stepIndex];
+  const q=new URLSearchParams({secret:pw});
+  if(st&&st.designId) q.set('id',st.designId);
+  else q.set('suggest',(activeKey+'_s'+(stepIndex+1)).replace(/[^a-z0-9_-]/g,''));
+  window.open('/marketing/?'+q.toString(),'_blank');
+}
+window.addEventListener('message',ev=>{
+  if(ev.origin!==window.location.origin) return;
+  if(!ev.data||ev.data.type!=='design-saved') return;
+  const {id,name,score}=ev.data;
+  designIndex=[{id,name,updatedAt:Date.now(),score},...designIndex.filter(d=>d.id!==id)];
+  if(designTarget!=null) chooseDesign(id);
+  else { renderSteps(); toast('Design "'+name+'" saved','ok'); }
+});
 
 /* ── folder collapse state (local convenience only) ─────────────────── */
 const collapsedKey='dwm_folders_collapsed';
@@ -799,15 +899,17 @@ function renderSteps(){
   c.steps.forEach((step,i)=>{
     if(!step.channel)step.channel='email'; if(!step.days)step.days={weekday:true,weekend:true};
     const sms=step.channel==='sms';
+    const design=step.format==='design';
     const wrap=document.createElement('div'); wrap.className='step';
     wrap.innerHTML=`
       <div class="node ${sms?'sms':'email'}"><span class="nn">${i+1}</span><span class="chg">${sms?ICONS.sms:ICONS.email}</span></div>
       <div class="step-card">
         <div class="step-top">
           <h3>Step ${i+1}</h3>${i===0?'<span class="tag">sent on enrollment</span>':''}
-          <div class="seg ${sms?'is-sms':''}" data-i="${i}">
+          <div class="seg ${sms?'is-sms':design?'is-design':''}" data-i="${i}">
             <span class="glider" style="transition:left .22s cubic-bezier(.4,0,.2,1),width .22s"></span>
-            <button data-ch="email" class="${!sms?'on':''}">${ICONS.email}Email</button>
+            <button data-ch="email" class="${!sms&&!design?'on':''}">${ICONS.email}Email</button>
+            <button data-ch="marketing" class="${design?'on':''}">${ICONS.spark}Marketing</button>
             <button data-ch="sms" class="${sms?'on':''}">${ICONS.sms}SMS</button>
           </div>
           <div class="step-tools">
@@ -817,9 +919,23 @@ function renderSteps(){
           </div>
         </div>
         ${sms?'':`<div class="field"><label>Subject line</label><input type="text" data-i="${i}" data-f="subject" value="${esc(step.subject||'')}"></div>`}
+        ${design?`
+        <div class="field" style="margin-bottom:6px"><label>Design</label>
+          <div class="designpick" data-i="${i}">
+            <div class="dp-body">
+              <strong>${step.designId?esc(designName(step.designId)):'No design chosen yet'}</strong>
+              <span>${step.designId?'Drag-and-drop marketing email':'Build one, or pick an existing design'}</span>
+            </div>
+            <div class="dp-actions">
+              <button class="btn btn-ghost" data-pickdesign="${i}">Choose\u2026</button>
+              <button class="btn btn-brass" data-opendesign="${i}">${step.designId?'Edit design':'Open builder'}</button>
+            </div>
+          </div>
+          ${!c.sendAs?`<div class="hint">This is a marketing email. If you'd rather it didn't go out from each rep's own mailbox, put a shared address in \u201cSend everything from\u201d above \u2014 entirely optional.</div>`:''}
+        </div>`:`
         <div class="field" style="margin-bottom:6px"><label>${sms?'Text message':'Email body'}</label><textarea data-i="${i}" data-f="body" ${sms?'data-sms="1" style="min-height:96px"':''}>${esc(step.body||'')}</textarea>
           <div class="tokens">${(sms?TOK_SMS:TOK_EMAIL).map(([t,d])=>`<span class="token" title="${d}" data-tok="${t}">${t}</span>`).join('')}</div>
-        </div>
+        </div>`}
         ${sms?`<div class="smsmeta"><span class="note">Sends from the deal owner\u2019s number for the lead\u2019s region.</span><span class="count" data-count="${i}">${smsCount(step.body)}</span></div>`:''}
         <div class="daypills"><span class="dl">Sends on</span>
           <button class="pill-toggle ${step.days.weekday?'on':''}" data-day="weekday" data-i="${i}"><span class="dot"></span>Weekdays</button>
@@ -834,7 +950,14 @@ function renderSteps(){
     }
   });
   // wire
-  leash.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{ const i=+b.closest('.seg').dataset.i; campaigns[activeKey].steps[i].channel=b.dataset.ch; renderSteps(); scheduleDraft(); });
+  leash.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{
+    const i=+b.closest('.seg').dataset.i, st=campaigns[activeKey].steps[i], ch=b.dataset.ch;
+    if(ch==='marketing'){ st.channel='email'; st.format='design'; }
+    else { st.channel=ch; delete st.format; delete st.designId; }
+    renderSteps(); scheduleDraft();
+  });
+  leash.querySelectorAll('[data-opendesign]').forEach(b=>b.onclick=()=>{ designTarget=+b.dataset.opendesign; openBuilder(designTarget); });
+  leash.querySelectorAll('[data-pickdesign]').forEach(b=>b.onclick=()=>openDesignModal(+b.dataset.pickdesign));
   leash.querySelectorAll('[data-day]').forEach(b=>b.onclick=()=>{ const i=+b.dataset.i,k=b.dataset.day,st=campaigns[activeKey].steps[i]; const other=k==='weekday'?'weekend':'weekday'; if(st.days[k]&&!st.days[other])return; st.days[k]=!st.days[k]; b.classList.toggle('on',st.days[k]); scheduleDraft(); });
   leash.querySelectorAll('[data-up]').forEach(b=>b.onclick=()=>moveStep(+b.dataset.up,-1));
   leash.querySelectorAll('[data-down]').forEach(b=>b.onclick=()=>moveStep(+b.dataset.down,1));
@@ -874,7 +997,11 @@ async function save(){
   campaigns=data.campaigns; localStorage.removeItem('dwm_draft_'+activeKey); $('draftNote').style.display='none';
   toast('Saved — live within 5 minutes for due sends','ok'); renderTree();
 }
-function newStep(channel){ return channel==='sms' ? {channel:'sms',days:{weekday:true,weekend:true},delayDaysAfter:null,body:'Hi {{firstname}}, '} : {channel:'email',days:{weekday:true,weekend:true},delayDaysAfter:null,subject:'',body:'Hi {{firstname}},\n\n'}; }
+function newStep(channel){
+  if(channel==='sms') return {channel:'sms',days:{weekday:true,weekend:true},delayDaysAfter:null,body:'Hi {{firstname}}, '};
+  if(channel==='marketing') return {channel:'email',format:'design',designId:'',days:{weekday:true,weekend:true},delayDaysAfter:null,subject:''};
+  return {channel:'email',days:{weekday:true,weekend:true},delayDaysAfter:null,subject:'',body:'Hi {{firstname}},\n\n'};
+}
 async function createCampaign(){
   const name=$('newName').value.trim(); if(!name)return;
   const key=name.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,40)||'seq_'+Date.now();
@@ -894,9 +1021,10 @@ async function sendTest(){
   const c=campaigns[activeKey]; const step=c.type==='checklist'?(c.firstEmail||{}):(c.steps||[])[0];
   if(!step){ toast('Nothing to test yet','err'); return; }
   if(step.channel==='sms'){ toast('Step 1 is an SMS — test texts aren\u2019t supported here yet','err'); $('testModal').style.display='none'; return; }
+  if(step.format==='design'&&!step.designId){ toast('Pick a design for step 1 first','err'); $('testModal').style.display='none'; return; }
   if(!step.subject){ toast('Write the first email first','err'); return; }
   $('testSendBtn').disabled=true;
-  const res=await fetch('/api/test-send?secret='+encodeURIComponent(pw),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({as,to,subject:'[TEST] '+step.subject,body:step.body,senderName:'Dogwise Test'})});
+  const res=await fetch('/api/test-send?secret='+encodeURIComponent(pw),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({as,to,subject:'[TEST] '+step.subject,body:step.body,designId:step.designId||undefined,senderName:'Dogwise Test'})});
   const data=await res.json(); $('testSendBtn').disabled=false; $('testModal').style.display='none';
   toast(data.ok?'Test sent — check your inbox':'Test failed: '+(data.error||''),data.ok?'ok':'err');
 }
@@ -1026,6 +1154,10 @@ $('newFolderBtn').onclick=createFolder;
 $('activityBtn').onclick=showActivity; $('settingsBtn').onclick=showSettings;
 $('testBtn').onclick=()=>{ $('testAs').value=localStorage.getItem('dw_test_as')||''; $('testTo').value=localStorage.getItem('dw_test_to')||''; $('testModal').style.display='flex'; };
 $('testSendBtn').onclick=sendTest;
+$('designNewBtn').onclick=()=>{
+  const i=designTarget; $('designModal').style.display='none';
+  if(i!=null) openBuilder(i);
+};
 $('addStepBtn').onclick=()=>{ const c=campaigns[activeKey]; if(c.type==='checklist')return; (c.steps=c.steps||[]).push(newStep('email')); renderSteps(); scheduleDraft(); };
 $('actFilter').onchange=renderActRows;
 $('search').oninput=renderTree;
