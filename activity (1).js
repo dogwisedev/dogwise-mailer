@@ -1,5 +1,5 @@
 // lib/hubspot.js — all HubSpot API interactions
-const BASE = 'https://api.hubapi.com';
+const BASE = 'https://api.hubapi.com'; 
 
 function headers() {
   return {
