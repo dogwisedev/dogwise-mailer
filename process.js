@@ -1,69 +1,154 @@
-// lib/util.js
-export function personalize(template, vars) {
-  return template.replace(/\{\{\s*([a-z_]+)\s*\}\}/gi, (_, key) => {
-    const v = vars[key.toLowerCase()];
-    return v != null && v !== '' ? v : defaultFor(key);
+// lib/gmail.js — send email as any @dogwiseacademy.com user via domain-wide delegation
+import { JWT } from 'google-auth-library';
+
+const SCOPES_SEND = ['https://www.googleapis.com/auth/gmail.send'];
+const SCOPES_READ = ['https://www.googleapis.com/auth/gmail.readonly'];
+
+function getKey() {
+  // Vercel env vars keep literal \n if pasted via CLI; dashboard pastes keep real newlines.
+  return (process.env.GOOGLE_SA_KEY || '').replace(/\\n/g, '\n');
+}
+
+async function getAccessToken(impersonateEmail, scopes = SCOPES_SEND) {
+  const client = new JWT({
+    email: process.env.GOOGLE_SA_EMAIL,
+    key: getKey(),
+    scopes,
+    subject: impersonateEmail
   });
-}
-
-function defaultFor(key) {
-  if (key.toLowerCase() === 'firstname') return 'there';
-  return '';
-}
-
-/** True if current time is inside the allowed send window (default 8am–6pm, America/New_York). */
-export function inSendWindow() {
-  const tz = process.env.SEND_TZ || 'America/New_York';
-  const startHour = parseInt(process.env.SEND_START_HOUR || '8', 10);
-  const endHour = parseInt(process.env.SEND_END_HOUR || '18', 10);
-  const hour = parseInt(
-    new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: tz }).format(new Date()),
-    10
-  );
-  return hour >= startHour && hour < endHour;
-}
-
-export function daysFromNow(days) {
-  return Date.now() + days * 24 * 60 * 60 * 1000;
+  const { token } = await client.getAccessToken();
+  if (!token) throw new Error(`No access token for ${impersonateEmail}`);
+  return token;
 }
 
 /**
- * Render the plain-text body the team writes into light HTML.
- * Supported syntax:
- *   [[button:Book a call|https://calendly.com/...]]   → styled button
- *   ![alt text](https://.../image.png)                → image
- *   [link text](https://...)                          → link
- *   blank line                                        → paragraph break
- * Everything else stays as-is; the plain-text version is sent alongside for fallback.
+ * Has `fromEmail` sent anything to `ownerEmail`'s mailbox since `sinceMs`?
+ * Returns true/false — or null if the readonly scope isn't granted / check failed
+ * (callers treat null as "can't check, proceed").
  */
-export function renderHtml(body) {
-  const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  let html = esc(body);
-
-  // [[button:Text|url]]
-  html = html.replace(/\[\[button:([^\|\]]+)\|([^\]]+)\]\]/g, (_, text, url) =>
-    `<div style="margin:18px 0"><a href="${url.trim()}" target="_blank" ` +
-    `style="background:#1B4F8A;color:#ffffff;padding:12px 26px;border-radius:6px;` +
-    `text-decoration:none;font-weight:600;display:inline-block;font-family:Arial,sans-serif">${text.trim()}</a></div>`);
-
-  // ![alt](url) images
-  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, url) =>
-    `<img src="${url.trim()}" alt="${alt.trim()}" style="max-width:100%;border-radius:6px;margin:10px 0" />`);
-
-  // [text](url) links
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text, url) =>
-    `<a href="${url.trim()}" target="_blank" style="color:#1B4F8A">${text.trim()}</a>`);
-
-  // paragraphs + line breaks
-  html = html.split(/\n{2,}/).map(p => `<p style="margin:0 0 14px">${p.replace(/\n/g, '<br>')}</p>`).join('');
-
-  return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#1E2A38;max-width:600px">${html}</div>`;
+export async function hasMailFrom(ownerEmail, fromEmail, sinceMs) {
+  try {
+    const token = await getAccessToken(ownerEmail, SCOPES_READ);
+    const q = encodeURIComponent(`from:${fromEmail} after:${Math.floor(sinceMs / 1000)}`);
+    const res = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${q}&maxResults=1`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return (data.resultSizeEstimate || 0) > 0 || (data.messages || []).length > 0;
+  } catch {
+    return null; // scope not granted yet, or transient failure — never block sends on this
+  }
 }
 
-/** Strip formatting syntax for the plain-text fallback part. */
-export function toPlainText(body) {
-  return body
-    .replace(/\[\[button:([^\|\]]+)\|([^\]]+)\]\]/g, '$1: $2')
-    .replace(/!\[[^\]]*\]\(([^)]+)\)/g, '')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1 ($2)');
+function base64url(str) {
+  return Buffer.from(str).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+// RFC 2047: email headers are ASCII-only — emoji/accents must be wrapped as =?UTF-8?B?...?=
+function encodeHeader(str) {
+  if (!/[^\x20-\x7E]/.test(str)) return str; // plain ASCII — leave as-is
+  return `=?UTF-8?B?${Buffer.from(str, 'utf8').toString('base64')}?=`;
+}
+
+function buildMime({ from, fromName, to, subject, body, html, extraHeaders }) {
+  const fromHeader = fromName ? `${encodeHeader(fromName)} <${from}>` : from;
+  const headers = [
+    `From: ${fromHeader}`,
+    `To: ${to}`,
+    `Subject: ${encodeHeader(subject)}`,
+    'MIME-Version: 1.0',
+    // CR/LF stripped: these values interpolate a URL, and a newline here would let a
+    // crafted send id inject arbitrary headers. With no extraHeaders passed, this spread
+    // contributes nothing and the output is byte-identical to before.
+    ...Object.entries(extraHeaders || {}).map(([k, v]) => `${k}: ${String(v).replace(/[\r\n]+/g, ' ')}`)
+  ];
+
+  if (!html) {
+    return [
+      ...headers,
+      'Content-Type: text/plain; charset="UTF-8"',
+      'Content-Transfer-Encoding: base64',
+      '',
+      Buffer.from(body, 'utf8').toString('base64')
+    ].join('\r\n');
+  }
+
+  // multipart/alternative: plain text fallback + HTML
+  const boundary = 'dwm_' + Math.random().toString(36).slice(2);
+  return [
+    ...headers,
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    '',
+    `--${boundary}`,
+    'Content-Type: text/plain; charset="UTF-8"',
+    'Content-Transfer-Encoding: base64',
+    '',
+    Buffer.from(body, 'utf8').toString('base64'),
+    `--${boundary}`,
+    'Content-Type: text/html; charset="UTF-8"',
+    'Content-Transfer-Encoding: base64',
+    '',
+    Buffer.from(html, 'utf8').toString('base64'),
+    `--${boundary}--`
+  ].join('\r\n');
+}
+
+/**
+ * Send an email as `senderEmail` (the deal owner).
+ * Pass `html` for a rich version alongside the plain-text `body`.
+ * Returns the Gmail message id.
+ */
+export async function sendAsOwner({ senderEmail, senderName, to, subject, body, html, extraHeaders }) {
+  const token = await getAccessToken(senderEmail);
+  const raw = base64url(buildMime({ from: senderEmail, fromName: senderName, to, subject, body, html, extraHeaders }));
+
+  const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ raw })
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Gmail send failed (${res.status}) as ${senderEmail}: ${err.slice(0, 300)}`);
+  }
+
+  const data = await res.json();
+  return data.id;
+}
+
+/**
+ * Bounce notices in `ownerEmail`'s mailbox since `sinceMs`.
+ * Returns [{ subject, snippet }]. Empty array on any failure — bounce sweeping must never
+ * be able to break a send. Uses the gmail.readonly scope already granted for reply detection.
+ */
+export async function findBounceNotices(ownerEmail, sinceMs, max = 25) {
+  try {
+    const token = await getAccessToken(ownerEmail, SCOPES_READ);
+    const q = encodeURIComponent(
+      `(from:mailer-daemon OR from:postmaster) after:${Math.floor(sinceMs / 1000)}`
+    );
+    const listRes = await fetch(
+      `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${q}&maxResults=${max}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (!listRes.ok) return [];
+    const { messages = [] } = await listRes.json();
+
+    const out = [];
+    for (const m of messages) {
+      const r = await fetch(
+        `https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=metadata&metadataHeaders=Subject`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (!r.ok) continue;
+      const d = await r.json();
+      const subject = (d.payload?.headers || []).find(h => h.name?.toLowerCase() === 'subject')?.value || '';
+      out.push({ subject, snippet: d.snippet || '' });
+    }
+    return out;
+  } catch {
+    return [];
+  }
 }

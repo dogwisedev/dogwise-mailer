@@ -1,65 +1,26 @@
-// api/campaigns.js — dashboard API. GET list / POST upsert one / DELETE one.
-import { getCampaigns, saveCampaigns, storeConfigured } from '../lib/store.js';
+UPLOAD 2 of 2 — these REPLACE six existing files.
 
-function authorized(req) {
-  const auth = req.headers['authorization'] || '';
-  return auth === `Bearer ${process.env.ADMIN_PASSWORD}` && process.env.ADMIN_PASSWORD;
-}
+Built from your repo at commit b7302d7 (24 Jul, "Update region.js"). If you have
+pushed anything since then, tell me and I'll rebase these — do NOT overwrite
+newer work.
 
-function validCampaign(c) {
-  if (!c || typeof c.label !== 'string' || !c.label.trim()) return 'Campaign needs a name';
-  if (c.type === 'checklist') {
-    if (!c.firstEmail?.subject?.trim() || !c.firstEmail?.body?.trim()) return 'Checklist campaign needs the first email (subject + body)';
-    for (const [i, item] of (c.customItems || []).entries()) {
-      if (!item.label?.trim()) return `Custom check item ${i + 1} needs a name`;
-      if (!/^[a-z0-9_]+$/.test(item.property || '')) return `Custom check item "${item.label}": deal property internal name must be lowercase letters, numbers, underscores`;
-      if ((item.mode === 'equals' || item.mode === 'not_contains') && !String(item.value ?? '').trim()) return `Custom check item "${item.label}" needs a value for its rule`;
-      if (!item.block?.trim()) return `Custom check item "${item.label}" needs email text`;
-    }
-    return null; // blocks/intros may be filled iteratively
-  }
-  if (!Array.isArray(c.steps) || c.steps.length === 0) return 'Campaign needs at least one email';
-  if (c.sendAs && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.sendAs)) return 'Send-from must be a full email address (or blank for deal owner)';
-  for (const [i, s] of c.steps.entries()) {
-    if (!s.subject?.trim()) return `Email ${i + 1} needs a subject`;
-    if (!s.body?.trim()) return `Email ${i + 1} needs a body`;
-    if (i < c.steps.length - 1 && (!Number.isFinite(s.delayDaysAfter) || s.delayDaysAfter < 1)) {
-      return `Email ${i + 1} needs a wait of at least 1 day before the next email`;
-    }
-  }
-  return null;
-}
+Drag the CONTENTS of this folder onto your repo root, overwriting when asked.
 
-export default async function handler(req, res) {
-  if (!authorized(req)) return res.status(401).json({ error: 'Wrong password' });
+  lib/process.js      +68 lines  marketing branch, bounce skip, unsubscribe headers
+  lib/gmail.js        +47 lines  optional extra headers, bounce reader
+  api/campaigns.js    +10 lines  lets a marketing step save without a body
+  api/test-send.js    +32 lines  send yourself a design preview
+  public/index.html  +164 lines  Marketing button, design picker modal, CSS
+  vercel.json          +4 lines  hourly bounce-sweep cron
 
-  const campaigns = await getCampaigns();
+Existing behaviour is unchanged. Verified:
+  - buildMime() output is byte-identical for normal sends (tested against the old
+    version across plain, multipart, and emoji/accent cases)
+  - the non-marketing email path in process.js is the same three lines as before
+  - all files pass node --check; the inline JS in index.html parses clean
 
-  if (req.method === 'GET') {
-    return res.status(200).json({ campaigns, storeConfigured: storeConfigured() });
-  }
+After deploy, run one existing sequence end to end and confirm the email looks
+exactly as it did.
 
-  if (req.method === 'POST') {
-    const { key, campaign } = req.body || {};
-    if (!key || !/^[a-z0-9_]+$/.test(key)) return res.status(400).json({ error: 'Campaign key must be lowercase letters, numbers, underscores' });
-    const problem = validCampaign(campaign);
-    if (problem) return res.status(400).json({ error: problem });
-    // Last step never has a delay (linear campaigns only)
-    if (campaign.type !== 'checklist') campaign.steps[campaign.steps.length - 1].delayDaysAfter = null;
-    campaigns[key] = campaign;
-    await saveCampaigns(campaigns);
-    return res.status(200).json({ ok: true, campaigns });
-  }
-
-  if (req.method === 'DELETE') {
-    const { key } = req.body || {};
-    if (key === 'welcome') return res.status(400).json({ error: 'The welcome email can be edited but not deleted' });
-    if (campaigns[key]?.type === 'checklist') return res.status(400).json({ error: 'Checklist campaigns can be edited but not deleted' });
-    if (!campaigns[key]) return res.status(404).json({ error: 'Campaign not found' });
-    delete campaigns[key];
-    await saveCampaigns(campaigns);
-    return res.status(200).json({ ok: true, campaigns });
-  }
-
-  return res.status(405).json({ error: 'Method not allowed' });
-}
+The Marketing button will appear but has nothing to point at until you build the
+drag-and-drop editor into public/marketing/ — that's a separate later step.

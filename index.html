@@ -1,0 +1,293 @@
+// lib/process.js — sends the due step for one contact. Shared by the cron sweep and the
+// instant webhook. A step is either EMAIL (subject + body, sent as the deal owner via
+// Gmail) or SMS (body only, sent via OpenPhone). Per-step day scope and the per-campaign
+// send window are both evaluated in the RECIPIENT'S timezone (resolved from their ZIP).
+import { getDealOwnerId, getOwnerAndDealName, updateContact, logEmailToTimeline, getLoggedCallCount } from './hubspot.js';
+import { sendAsOwner, hasMailFrom } from './gmail.js';
+import { sendSms, hasInboundSince } from './sms.js';
+import { personalize, renderHtml, toPlainText, daysFromNow } from './util.js';
+import { getDesign } from './designs.js';
+import { assembleMarketingEmail } from './marketing.js';
+import { isSuppressed } from './bounces.js';
+import { marketingGate, recordMarketingSend } from './throttle.js';
+import { bookingLinkFor, smsNumberFor } from './settings.js';
+import { resolveRegion, canSendNow } from './region.js';
+import { logEvent, rememberSend, rememberLastSend, getLastSend, bumpStat } from './activity.js';
+import { processChecklist } from './checklist.js';
+
+function appUrl() {
+  return process.env.APP_URL
+    || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'https://dogwise-mailer.vercel.app');
+}
+
+/**
+ * Process a single contact record ({ id, properties }).
+ * Returns { status: 'sent'|'completed'|'skipped'|'replied'|'error', detail? }
+ */
+export async function processContact(contact, campaigns, ownerMap) {
+  const p = contact.properties || {};
+  const email = p.email;
+  if (String(p.hs_email_optout) === 'true') return { status: 'skipped', detail: 'opted out' };
+  if (!p.dw_campaign) return { status: 'skipped', detail: 'no campaign set' };
+
+  // Only act if genuinely due NOW (guards against stale search results / duplicate triggers).
+  const due = parseInt(p.dw_next_send || '', 10);
+  if (isNaN(due) || due > Date.now()) return { status: 'skipped', detail: 'not due (stale or future dw_next_send)' };
+
+  const campaign = campaigns[p.dw_campaign];
+  if (!campaign) {
+    await updateContact(contact.id, { dw_next_send: '' });
+    return { status: 'error', detail: `unknown campaign "${p.dw_campaign}"` };
+  }
+
+  if (campaign.type === 'checklist') return processChecklist(contact, campaign, ownerMap);
+
+  const stepIndex = Math.max(1, parseInt(p.dw_campaign_step || '1', 10)) - 1;
+  const step = campaign.steps[stepIndex];
+  if (!step) {
+    await updateContact(contact.id, { dw_next_send: '', dw_campaign_step: String(campaign.steps.length) });
+    return { status: 'completed' };
+  }
+
+  const channel = step.channel === 'sms' ? 'sms' : 'email';
+  if (channel === 'email' && !email) return { status: 'error', detail: 'contact has no email' };
+  if (channel === 'sms' && !p.phone)  return { status: 'error', detail: 'contact has no phone (SMS step)' };
+
+  // ── Primary deal (newest owned): gives the sender's owner id AND the deal name, which
+  //    often carries the lead's ZIP. Fetched once and reused for region resolution below. ──
+  const primaryDeal = await getOwnerAndDealName(contact.id);
+
+  // ── Sender: campaign-level override wins; otherwise the deal owner. ──
+  let owner = null, ownerId = null;
+  if (campaign.sendAs) {
+    const match = Object.entries(ownerMap).find(([, o]) => o.email?.toLowerCase() === campaign.sendAs.toLowerCase());
+    if (match) { ownerId = match[0]; owner = match[1]; }
+    else owner = { email: campaign.sendAs, firstName: campaign.sendAsName || '', lastName: '' };
+  } else {
+    ownerId = primaryDeal.ownerId;
+    owner = ownerId ? ownerMap[String(ownerId)] : null;
+    if (!owner?.email) return { status: 'error', detail: `no deal owner resolvable (ownerId: ${ownerId})` };
+  }
+
+  const base = { contact: email || p.phone, campaign: p.dw_campaign, step: stepIndex + 1, sender: owner.email, channel };
+
+  // ── Region: stamped value → contact ZIP → ZIP in the deal's location field → ZIP in the deal
+  //    name. `resolved` is false when no real ZIP was found; we then withhold SMS (below) and
+  //    never stamp a guessed region. ──
+  const { region, stamped, resolved } = await resolveRegion({
+    stampedRegion: p.lead_region, zip: p.zip_code, fallbackZips: [primaryDeal.location, primaryDeal.dealName]
+  });
+  if (!stamped && resolved) { try { await updateContact(contact.id, { lead_region: region }); } catch { /* non-fatal */ } }
+
+  // ── Send window + allowed days, in the lead's local time. Outside → DEFER (leave dw_next_send
+  //    untouched; the 5-min cron retries until the window/day opens). No status is written. ──
+  const gate = canSendNow(region, campaign.window, step.days);
+  if (!gate.ok) return { status: 'skipped', detail: `deferred — ${gate.reason}` };
+
+  // ── Stop-if-called: a rep has logged a call, so back off the whole sequence. ──
+  if (campaign.stopIfCalled) {
+    const calls = await getLoggedCallCount(contact.id);
+    if (calls > 0) {
+      await updateContact(contact.id, { dw_campaign: '', dw_next_send: '' });
+      await logEvent({ type: 'skipped', ...base, detail: `stopped — ${calls} logged call(s), a rep took over` });
+      return { status: 'completed', detail: 'stopped — rep logged a call' };
+    }
+  }
+
+  // Which numbers/replies matter: only touch OpenPhone if this campaign actually uses SMS.
+  const campaignHasSms = campaign.steps.some(s => s.channel === 'sms');
+  const smsNumberId = (channel === 'sms' || (campaignHasSms && ownerId)) ? await smsNumberFor(ownerId, region) : '';
+
+  // ── Reply detection: if the lead has come back to us since our last send, stop the sequence. ──
+  const lastSend = await getLastSend(contact.id);
+  if (lastSend) {
+    if (email) {
+      const repliedEmail = await hasMailFrom(owner.email, email, lastSend);
+      if (repliedEmail === true) {
+        await updateContact(contact.id, { dw_campaign: '', dw_next_send: '' });
+        await logEvent({ type: 'replied', ...base, detail: 'sequence stopped — contact emailed the owner' });
+        await bumpStat(base.campaign, 'replied');
+        return { status: 'replied', detail: `${email} replied to ${owner.email}; unenrolled` };
+      }
+    }
+    if (campaignHasSms && smsNumberId && p.phone) {
+      const repliedSms = await hasInboundSince({ phoneNumberId: smsNumberId, contactPhone: p.phone, sinceMs: lastSend });
+      if (repliedSms === true) {
+        await updateContact(contact.id, { dw_campaign: '', dw_next_send: '' });
+        await logEvent({ type: 'replied', ...base, detail: 'sequence stopped — contact texted back' });
+        await bumpStat(base.campaign, 'replied');
+        return { status: 'replied', detail: `${p.phone} texted back; unenrolled` };
+      }
+    }
+    // null from either check (can't verify) → proceed with the send
+  }
+
+  const vars = {
+    firstname: p.firstname,
+    lastname: p.lastname,
+    email: email,
+    sender_firstname: owner.firstName,
+    sender_lastname: owner.lastName,
+    sender_booking_link: await bookingLinkFor(owner.email)
+  };
+
+  const isLast = stepIndex + 1 >= campaign.steps.length;
+
+  // ── Advance Logic (Modified for immediate recursion on 0 days) ──
+  const advance = async () => {
+    const nextStepNum = stepIndex + 2;
+    // Safely parse string "0" or number 0
+    const isZeroDelay = step.delayDaysAfter == null || Number(step.delayDaysAfter) === 0;
+
+    if (isLast) {
+      await updateContact(contact.id, { 
+        dw_next_send: '', 
+        dw_campaign_step: String(nextStepNum) 
+      });
+      return false; // Done, do not recurse
+    } else if (isZeroDelay) {
+      const pastTime = String(Date.now() - 60000); // due now
+      // Update HubSpot so it's correct in the CRM
+      await updateContact(contact.id, { 
+        dw_next_send: pastTime, 
+        dw_campaign_step: String(nextStepNum) 
+      });
+      
+      // Update local memory so the recursive call sees the new state
+      p.dw_campaign_step = String(nextStepNum);
+      p.dw_next_send = pastTime;
+      return true; // Return TRUE to trigger immediate recursion
+    } else {
+      const delayMs = Number(step.delayDaysAfter) * 24 * 60 * 60 * 1000;
+      const nextTime = Date.now() + delayMs;
+      await updateContact(contact.id, { 
+        dw_next_send: String(nextTime), 
+        dw_campaign_step: String(nextStepNum) 
+      });
+      return false; // Future send, do not recurse
+    }
+  };
+
+  // ═══════════════ SMS ═══════════════
+  if (channel === 'sms') {
+    // Never text from a guessed number. Require a region resolved from a real ZIP (contact or
+    // deal name); otherwise skip THIS step and move the sequence on — don't send.
+    if (!resolved) {
+      await logEvent({ type: 'skipped', ...base, detail: 'SMS withheld — no ZIP in contact or deal name; region unknown' });
+      const rec = await advance();
+      if (rec) return processContact(contact, campaigns, ownerMap);
+      return { status: 'skipped', detail: 'SMS withheld — region unknown' };
+    }
+    if (!ownerId) return { status: 'error', detail: 'SMS step needs a deal owner (no sendAs number map)' };
+    if (!smsNumberId) {
+      // Owner has no number mapped for THIS region — don't fall back to another region's line; skip.
+      await logEvent({ type: 'skipped', ...base, detail: `SMS withheld — no ${region} number configured for owner ${ownerId}` });
+      const rec = await advance();
+      if (rec) return processContact(contact, campaigns, ownerMap);
+      return { status: 'skipped', detail: `SMS withheld — no ${region} number for owner ${ownerId}` };
+    }
+    const content = personalize(step.body, vars);
+    const r = await sendSms({ from: smsNumberId, to: p.phone, content });
+    if (!r.ok) {
+      await logEvent({ type: 'error', ...base, detail: r.error });
+      return { status: 'error', detail: r.error };
+    }
+    await rememberLastSend(contact.id);
+    await logEvent({ type: 'sent', ...base, detail: `SMS via ${region} number` });
+    await bumpStat(base.campaign, 'sent');
+    
+    // Check if we need to fire the next step right now
+    const shouldRecurse = await advance();
+    if (shouldRecurse) {
+      return processContact(contact, campaigns, ownerMap);
+    }
+    
+    return { status: isLast ? 'completed' : 'sent', detail: `SMS step ${stepIndex + 1} → ${p.phone} (${region})` };
+  }
+
+  // ═══════════════ EMAIL ═══════════════
+  // Previously hard-bounced address: don't mail it again. Skip the step and advance rather
+  // than unenrolling, so a mixed email+SMS sequence still delivers its texts.
+  if (await isSuppressed(email)) {
+    await logEvent({ type: 'skipped', ...base, detail: `withheld — ${email} previously hard-bounced` });
+    const rec = await advance();
+    if (rec) return processContact(contact, campaigns, ownerMap);
+    return { status: 'skipped', detail: `suppressed — ${email} hard-bounced` };
+  }
+
+  const subject = personalize(step.subject, vars);
+  const sendId = `${contact.id}.${stepIndex + 1}.${Date.now().toString(36)}`;
+
+  // Two flavours of email body:
+  //   format:'design' → drag-and-drop marketing email, pre-rendered HTML from the builder
+  //   anything else   → the plain-text body the team types, exactly as before
+  let html, plain, isMarketing = false;
+  if (step.format === 'design' && step.designId) {
+    isMarketing = true;
+
+    // Over the per-sender cap → DEFER. dw_next_send is left untouched, so the 5-minute
+    // cron retries. Same semantics as the send-window gate above. With the default caps
+    // (400/day, 20 per tick) this will not fire at normal volumes.
+    const cap = await marketingGate(owner.email);
+    if (!cap.ok) return { status: 'skipped', detail: `deferred — ${cap.reason}` };
+
+    const record = await getDesign(step.designId);
+    if (!record) {
+      await logEvent({ type: 'error', ...base, detail: `marketing design "${step.designId}" not found — nothing sent` });
+      return { status: 'error', detail: `marketing design "${step.designId}" missing` };
+    }
+    const built = assembleMarketingEmail({
+      record,
+      vars,
+      sendId,
+      appUrl: appUrl(),
+      senderName: process.env.BRAND_NAME || 'Dogwise Academy',
+      senderAddress: process.env.BRAND_ADDRESS || ''
+    });
+    html = built.html;
+    plain = built.text;
+  } else {
+    const rawBody = personalize(step.body, vars);
+    html = renderHtml(rawBody) + `<img src="${appUrl()}/api/px?e=${sendId}" width="1" height="1" alt="" style="display:none">`;
+    plain = toPlainText(rawBody);
+  }
+
+  // One-click unsubscribe, marketing steps only. Deliberately NOT added to 1:1 email — a
+  // List-Unsubscribe header on a personal note is what makes it look like a blast.
+  // RFC 8058: the URL must accept POST, which api/unsubscribe.js does.
+  const extraHeaders = isMarketing
+    ? {
+        'List-Unsubscribe': `<${appUrl()}/api/unsubscribe?e=${sendId}>`,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click'
+      }
+    : undefined;
+
+  await sendAsOwner({
+    senderEmail: owner.email,
+    senderName: [owner.firstName, owner.lastName].filter(Boolean).join(' '),
+    to: email,
+    subject,
+    body: plain,
+    html,
+    extraHeaders
+  });
+
+  if (isMarketing) await recordMarketingSend(owner.email);
+
+  await rememberSend(sendId, base);
+  await rememberLastSend(contact.id);
+  await logEvent({ type: 'sent', ...base, subject });
+  await bumpStat(base.campaign, 'sent');
+
+  try {
+    await logEmailToTimeline({ contactId: contact.id, ownerId, subject, body: plain, campaign: p.dw_campaign, step: stepIndex + 1 });
+  } catch { /* timeline logging is non-fatal */ }
+
+  // Check if we need to fire the next step right now
+  const shouldRecurse = await advance();
+  if (shouldRecurse) {
+    return processContact(contact, campaigns, ownerMap);
+  }
+
+  return { status: isLast ? 'completed' : 'sent', detail: `step ${stepIndex + 1} → ${email} as ${owner.email}` };
+}
