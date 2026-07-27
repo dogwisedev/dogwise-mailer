@@ -1,1 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- no-referrer: stops the full URL (which may carry ?secret=) leaking to the CDN in a Referer header -->
+<meta name="referrer" content="no-referrer">
+<title>Marketing email builder · Dogwise</title>
 
+<!-- GrapesJS 0.23.3 + newsletter preset 1.0.2, pinned. Verified against the npm tarballs.
+     If unpkg is ever blocked, jsDelivr serves the identical files:
+       https://cdn.jsdelivr.net/npm/grapesjs@0.23.3/dist/css/grapes.min.css
+       https://cdn.jsdelivr.net/npm/grapesjs@0.23.3/dist/grapes.min.js
+       https://cdn.jsdelivr.net/npm/grapesjs-preset-newsletter@1.0.2/dist/index.js -->
+<link rel="stylesheet" href="https://unpkg.com/grapesjs@0.23.3/dist/css/grapes.min.css">
+
+<style>
+  :root{
+    --navy:#1D4E89; --navy-700:#173F6E; --abyss:#0B1A30; --abyss-2:#0E2440;
+    --brass:#C6892F; --brass-deep:#A66E1F; --brass-wash:#FBF4E6;
+    --ink:#16233B; --slate:#5B6B84; --mute:#8A97AC; --line:#E2E7EF; --paper:#EDEFF4;
+    --sent:#2E7D46; --err:#C0392B;
+    /* GrapesJS theme, tuned to the Dogwise palette */
+    --gjs-primary-color:#0E2440; --gjs-secondary-color:#C4D3E6;
+    --gjs-tertiary-color:#1D4E89; --gjs-quaternary-color:#C6892F;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--ink)}
+  body{display:flex;flex-direction:column;background:var(--paper)}
+
+  /* ── top bar ── */
+  #bar{display:flex;align-items:center;gap:12px;padding:9px 14px;background:#fff;
+    border-bottom:1px solid var(--line);flex-wrap:wrap;flex:0 0 auto}
+  #bar .grp{display:flex;align-items:center;gap:6px}
+  #bar label{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--slate)}
+  #bar input{padding:7px 10px;border:1.5px solid var(--line);border-radius:8px;font:inherit;font-size:13px;outline:none}
+  #bar input:focus{border-color:var(--navy);box-shadow:0 0 0 3px #E7EEF7}
+  #dName{width:210px} #dId{width:150px;font-family:ui-monospace,monospace;font-size:12px}
+  .toks{display:flex;gap:5px;flex-wrap:wrap;flex:1;min-width:180px}
+  .tok{font-family:ui-monospace,monospace;font-size:11px;background:var(--paper);border:1px solid var(--line);
+    color:var(--navy);padding:3px 8px;border-radius:6px;cursor:pointer}
+  .tok:hover{border-color:var(--navy);background:#E7EEF7}
+  .btn{border:none;border-radius:8px;cursor:pointer;font:inherit;font-size:13px;font-weight:600;padding:9px 16px;white-space:nowrap}
+  .btn-brass{background:linear-gradient(150deg,var(--brass),var(--brass-deep));color:#fff;box-shadow:0 6px 18px rgba(198,137,47,.28)}
+  .btn-brass:disabled{opacity:.6;cursor:default}
+  .btn-ghost{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
+  #chip{font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;font-family:ui-monospace,monospace;display:none}
+  #chip.good{background:#e6f4ea;color:var(--sent)} #chip.warn{background:var(--brass-wash);color:var(--brass-deep)}
+  #chip.bad{background:#fdeceb;color:var(--err)}
+
+  /* ── findings panel ── */
+  #findings{display:none;flex:0 0 auto;max-height:190px;overflow:auto;padding:10px 14px;
+    background:#fbfcfe;border-bottom:1px solid var(--line)}
+  .find{display:flex;gap:9px;padding:7px 10px;border-radius:8px;margin-bottom:5px;font-size:12.5px;line-height:1.5}
+  .find b{display:block;margin-bottom:2px}
+  .find span{opacity:.85}
+  .find.high{background:#fdeceb;border-left:3px solid var(--err)}
+  .find.medium{background:var(--brass-wash);border-left:3px solid var(--brass)}
+  .find.low{background:#eef3f9;border-left:3px solid var(--navy)}
+
+  /* ── editor ── */
+  #gjs{flex:1 1 auto;min-height:0;border:none}
+  .gjs-cv-canvas{background:#f1f3f7}
+
+  /* ── gate ── */
+  #gate{position:fixed;inset:0;background:radial-gradient(900px 500px at 30% 0%,#14335f,#0b1c34 70%);
+    display:none;align-items:center;justify-content:center;z-index:99}
+  #gate .card{background:#fff;border-radius:16px;padding:32px 30px;width:360px;max-width:calc(100vw - 32px);
+    box-shadow:0 18px 44px rgba(11,26,48,.35)}
+  #gate h1{font-size:19px;margin:0 0 6px}
+  #gate p{color:var(--slate);font-size:13px;margin:0 0 18px}
+  #gate input{width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:8px;font:inherit;outline:none}
+  #gate .btn{width:100%;margin-top:14px}
+  #gateErr{display:none;color:var(--err);font-size:12.5px;margin-top:9px}
+
+  #toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--ink);
+    color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;z-index:100;opacity:0;
+    transition:transform .26s,opacity .26s;max-width:90vw}
+  #toast.show{transform:translateX(-50%);opacity:1}
+  #toast.ok{background:#12402a} #toast.err{background:#5f1a13}
+</style>
+</head>
+<body>
+
+<div id="bar">
+  <div class="grp"><label for="dName">Name</label><input id="dName" placeholder="Spring 10% off"></div>
+  <div class="grp"><label for="dId">Id</label><input id="dId" placeholder="spring_promo"></div>
+  <div class="toks" id="toks"></div>
+  <span id="chip"></span>
+  <button class="btn btn-ghost" id="previewBtn">Preview HTML</button>
+  <button class="btn btn-brass" id="saveBtn">Save to Dogwise</button>
+</div>
+
+<div id="findings"></div>
+<div id="gjs"></div>
+
+<div id="gate"><div class="card">
+  <h1>Marketing builder</h1>
+  <p>Enter the team password — the same one you use for the dashboard.</p>
+  <input type="password" id="gatePw" placeholder="Password" autocomplete="current-password">
+  <div id="gateErr">That password didn't work.</div>
+  <button class="btn btn-brass" id="gateBtn">Open builder</button>
+</div></div>
+
+<div id="toast"></div>
+
+<script src="https://unpkg.com/grapesjs@0.23.3/dist/grapes.min.js"></script>
+<script src="https://unpkg.com/grapesjs-preset-newsletter@1.0.2/dist/index.js"></script>
+<script>
+(function(){
+  'use strict';
+  var $ = function(id){ return document.getElementById(id); };
+
+  function toast(msg, cls){
+    var t=$('toast'); t.textContent=msg; t.className='show '+(cls||'');
+    clearTimeout(t._t); t._t=setTimeout(function(){ t.className=''; }, 4200);
+  }
+
+  // ── auth ──────────────────────────────────────────────────────────────────
+  // Preferred: sessionStorage, which the dashboard already sets and which is copied
+  // into this tab when opened via window.open from the same origin.
+  // Fallback: ?secret= in the URL — accepted, then immediately stripped from the
+  // address bar and history so it doesn't sit in the browser log.
+  var params = new URLSearchParams(location.search);
+  var urlSecret = params.get('secret');
+  var pw = sessionStorage.getItem('dw_pw') || urlSecret || '';
+
+  if (urlSecret) {
+    sessionStorage.setItem('dw_pw', urlSecret);
+    params.delete('secret');
+    var clean = location.pathname + (params.toString() ? '?' + params.toString() : '');
+    history.replaceState(null, '', clean);
+  }
+
+  var designId  = params.get('id') || '';
+  var suggested = params.get('suggest') || '';
+
+  function api(path, opts){
+    opts = opts || {};
+    opts.headers = Object.assign({
+      'Authorization': 'Bearer ' + pw,
+      'Content-Type': 'application/json'
+    }, opts.headers || {});
+    return fetch(path, opts);
+  }
+
+  // ── starter template for a brand new design ───────────────────────────────
+  var STARTER = [
+    '<table style="width:100%;max-width:600px;margin:0 auto;background:#ffffff">',
+      '<tr><td style="padding:26px 26px 8px 26px;font-family:Arial,Helvetica,sans-serif">',
+        '<h1 style="margin:0;font-size:24px;line-height:1.25;color:#16233B">Hi {{firstname}}, a spot just opened</h1>',
+      '</td></tr>',
+      '<tr><td style="padding:8px 26px 4px 26px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.65;color:#3d4a5c">',
+        '<p style="margin:0 0 14px">We have room in the two-week board &amp; train programme next month. ',
+        'Leash manners, recall and door behaviour, plus three follow-up sessions once your dog is home.</p>',
+        '<p style="margin:0">Most owners tell us the door greeting is the first thing they notice.</p>',
+      '</td></tr>',
+      '<tr><td style="padding:20px 26px;font-family:Arial,Helvetica,sans-serif">',
+        '<a href="https://dogwiseacademy.com" style="background:#1D4E89;color:#ffffff;padding:13px 28px;',
+        'border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block">Book a call</a>',
+      '</td></tr>',
+      '<tr><td style="padding:4px 26px 28px 26px;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#5B6B84">',
+        '<p style="margin:0">\u2014 {{sender_firstname}}, Dogwise Academy</p>',
+      '</td></tr>',
+    '</table>'
+  ].join('');
+
+  // ── editor ────────────────────────────────────────────────────────────────
+  var preset = window['grapesjs-preset-newsletter'];
+  if (!window.grapesjs || !preset) {
+    document.body.innerHTML = '<div style="padding:40px;font-family:sans-serif">' +
+      '<h2>Couldn\'t load the editor</h2><p>The GrapesJS files didn\'t load from unpkg.com. ' +
+      'Check your connection, or swap the two script tags in this file to the jsDelivr URLs ' +
+      'listed in the comment at the top.</p></div>';
+    return;
+  }
+
+  var editor = window.grapesjs.init({
+    container: '#gjs',
+    height: '100%',
+    width: 'auto',
+    storageManager: false,          // we persist to /api/designs ourselves
+    assetManager: { upload: false, uploadText: 'Paste an image URL below — uploads are not enabled' },
+    plugins: [preset],
+    pluginsOpts: {}
+  });
+  editor.setComponents(STARTER);
+
+  // ── personalization tokens ────────────────────────────────────────────────
+  var TOKENS = ['{{firstname}}','{{lastname}}','{{email}}','{{sender_firstname}}','{{sender_lastname}}','{{sender_booking_link}}'];
+  TOKENS.forEach(function(t){
+    var b=document.createElement('button');
+    b.className='tok'; b.type='button'; b.textContent=t;
+    b.title='Click to copy, then paste into any text block';
+    b.onclick=function(){
+      if (navigator.clipboard) navigator.clipboard.writeText(t);
+      toast('Copied ' + t + ' \u2014 double-click a text block and paste', 'ok');
+    };
+    $('toks').appendChild(b);
+  });
+
+  // ── html + text extraction ────────────────────────────────────────────────
+  function inlinedHtml(){
+    // The newsletter preset inlines the CSS into style attributes, which is what mail
+    // clients need. If the command ever returns nothing, fall back to html + <style>.
+    var out = '';
+    try { out = editor.runCommand('gjs-get-inlined-html') || ''; } catch(e){ out = ''; }
+    if (!out) {
+      out = '<style>' + editor.getCss() + '</style>' + editor.getHtml();
+    }
+    if (!/<body[\s>]/i.test(out)) out = '<body>' + out + '</body>';
+    if (!/<html[\s>]/i.test(out)) out = '<!DOCTYPE html><html>' + out + '</html>';
+    return out;
+  }
+
+  function plainText(html){
+    var d = document.createElement('div');
+    d.innerHTML = String(html)
+      .replace(/<(script|style)[\s\S]*?<\/\1>/gi,' ')
+      .replace(/<\/(p|div|tr|h1|h2|h3|li)>/gi,'\n\n')
+      .replace(/<br\s*\/?>/gi,'\n');
+    // Turn links into "label: url" so the text part still carries the call to action
+    var tmp = document.createElement('div'); tmp.innerHTML = html;
+    var links = [];
+    Array.prototype.forEach.call(tmp.querySelectorAll('a[href]'), function(a){
+      var label=(a.textContent||'').trim(), href=a.getAttribute('href')||'';
+      if (label && href && href.indexOf('http')===0) links.push(label + ': ' + href);
+    });
+    var body = (d.textContent||'').replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim();
+    return links.length ? body + '\n\n' + links.join('\n') : body;
+  }
+
+  function slug(s){
+    return String(s).toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,60);
+  }
+
+  // ── load an existing design ───────────────────────────────────────────────
+  function loadExisting(){
+    if (!designId) { $('dId').value = suggested; return Promise.resolve(); }
+    return api('/api/designs?id=' + encodeURIComponent(designId))
+      .then(function(r){
+        if (r.status === 401) throw new Error('unauthorized');
+        if (!r.ok) return r.json().then(function(d){ throw new Error(d.error || ('HTTP '+r.status)); });
+        return r.json();
+      })
+      .then(function(d){
+        var rec = d.design || {};
+        $('dName').value = rec.name || '';
+        $('dId').value   = rec.id || designId;
+        if (rec.design && typeof rec.design === 'object' && Object.keys(rec.design).length) {
+          try { editor.loadProjectData(rec.design); }
+          catch(e){ if (rec.html) editor.setComponents(rec.html); }
+        } else if (rec.html) {
+          editor.setComponents(rec.html);
+        }
+        if (typeof rec.score === 'number') showChip(rec.score);
+      });
+  }
+
+  // ── preflight display ─────────────────────────────────────────────────────
+  function showChip(score){
+    var c = $('chip');
+    c.textContent = 'Preflight ' + score + '/100';
+    c.className = score >= 85 ? 'good' : (score >= 70 ? 'warn' : 'bad');
+    c.style.display = 'inline-block';
+  }
+  function showFindings(list){
+    var box = $('findings');
+    if (!list || !list.length) { box.style.display='none'; box.innerHTML=''; return; }
+    box.innerHTML = list.map(function(f){
+      return '<div class="find ' + f.level + '"><div><b>' + esc(f.message) + '</b><span>' + esc(f.fix||'') + '</span></div></div>';
+    }).join('');
+    box.style.display = 'block';
+  }
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // ── save ──────────────────────────────────────────────────────────────────
+  var dirty = false;
+  editor.on('update', function(){ dirty = true; });
+
+  function save(){
+    var name = $('dName').value.trim();
+    if (!name) { toast('Give the design a name first','err'); $('dName').focus(); return; }
+    var id = ($('dId').value.trim() || slug(name)).replace(/[^a-z0-9_-]/g,'-');
+    if (id.length < 3) { toast('The id needs at least 3 characters','err'); $('dId').focus(); return; }
+
+    var html = inlinedHtml();
+    var text = plainText(html);
+    var design = editor.getProjectData();
+
+    $('saveBtn').disabled = true;
+    $('saveBtn').textContent = 'Saving\u2026';
+
+    api('/api/designs', {
+      method: 'POST',
+      body: JSON.stringify({ id: id, name: name, design: design, html: html, text: text })
+    })
+    .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, status: r.status, d: d }; }); })
+    .then(function(res){
+      if (!res.ok) throw new Error(res.d.error || ('HTTP ' + res.status));
+      var d = res.d;
+      $('dId').value = d.id;
+      designId = d.id;
+      dirty = false;
+      if (typeof d.score === 'number') showChip(d.score);
+      showFindings(d.findings);
+
+      var highs = (d.findings||[]).filter(function(f){ return f.level === 'high'; }).length;
+      toast(highs
+        ? 'Saved \u2014 but ' + highs + ' serious deliverability issue' + (highs>1?'s':'') + ' below'
+        : 'Saved \u00b7 ' + Math.round(html.length/1024) + ' KB \u00b7 preflight ' + d.score + '/100',
+        highs ? 'err' : 'ok');
+
+      if (window.opener && !window.opener.closed) {
+        window.opener.postMessage({ type:'design-saved', id:d.id, name:d.name, score:d.score }, location.origin);
+      }
+    })
+    .catch(function(e){ toast('Save failed: ' + e.message, 'err'); })
+    .then(function(){ $('saveBtn').disabled=false; $('saveBtn').textContent='Save to Dogwise'; });
+  }
+
+  $('saveBtn').onclick = save;
+  $('previewBtn').onclick = function(){
+    var w = window.open('', '_blank');
+    if (w) { w.document.write(inlinedHtml()); w.document.close(); }
+  };
+
+  window.addEventListener('beforeunload', function(e){
+    if (!dirty) return;
+    e.preventDefault(); e.returnValue = '';
+  });
+
+  // ── boot ──────────────────────────────────────────────────────────────────
+  function boot(){
+    loadExisting().catch(function(e){
+      if (String(e.message) === 'unauthorized') { pw=''; sessionStorage.removeItem('dw_pw'); openGate(); }
+      else toast('Could not load that design: ' + e.message, 'err');
+    });
+  }
+  function openGate(){
+    $('gate').style.display = 'flex';
+    $('gatePw').focus();
+  }
+  $('gateBtn').onclick = function(){
+    var v = $('gatePw').value.trim();
+    if (!v) return;
+    pw = v;
+    api('/api/designs').then(function(r){
+      if (!r.ok) { $('gateErr').style.display='block'; pw=''; return; }
+      sessionStorage.setItem('dw_pw', pw);
+      $('gate').style.display='none';
+      boot();
+    }).catch(function(){ $('gateErr').style.display='block'; });
+  };
+  $('gatePw').addEventListener('keydown', function(e){ if (e.key === 'Enter') $('gateBtn').click(); });
+
+  if (pw) boot(); else openGate();
+})();
+</script>
+</body>
+</html>
