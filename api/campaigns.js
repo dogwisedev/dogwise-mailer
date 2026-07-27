@@ -34,8 +34,14 @@ function validCampaign(c) {
   for (const [i, s] of c.steps.entries()) {
     const channel = s.channel === 'sms' ? 'sms' : 'email';
     const n = i + 1;
-    if (!s.body?.trim()) return `Step ${n} needs ${channel === 'sms' ? 'a message' : 'a body'}`;
-    if (channel === 'email' && !s.subject?.trim()) return `Email step ${n} needs a subject`;
+    if (s.format === 'design') {
+      if (channel !== 'email') return `Step ${n}: marketing emails can't be SMS steps`;
+      if (!s.designId) return `Step ${n} is a marketing email — open the builder and pick a design`;
+      if (!s.subject?.trim()) return `Marketing step ${n} needs a subject line`;
+    } else {
+      if (!s.body?.trim()) return `Step ${n} needs ${channel === 'sms' ? 'a message' : 'a body'}`;
+      if (channel === 'email' && !s.subject?.trim()) return `Email step ${n} needs a subject`;
+    }
     if (s.days && !s.days.weekday && !s.days.weekend) return `Step ${n}: pick at least one of weekdays / weekends`;
     
     // CHANGED: Allow 0 or decimals (waitDaysAfter < 0 instead of < 1)
