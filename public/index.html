@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <link rel="icon" type="image/png" href="flavicon.png">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dogwise Campaigns</title>
@@ -1091,9 +1092,7 @@ function renderCustomItems(){ const c=campaigns[activeKey]; c.customItems=c.cust
 
 /* ── save / create / delete / test ─────────────────────────────────── */
 async function save(){
-  // Every failure path must surface. This used to call res.json() unguarded, so a 500 or
-  // 404 (which return an HTML error page, not JSON) threw before any toast ran and the
-  // button just sat there disabled — a save that fails silently and leaves a draft.
+
   const c=campaigns[activeKey];
   if(!c){ toast('No sequence selected','err'); return; }
   c.label=$('campLabel').value.trim()||c.label;
