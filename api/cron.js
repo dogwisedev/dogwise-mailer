@@ -2,6 +2,7 @@
 import { getCampaigns } from '../lib/store.js';
 import { getDueContacts, buildOwnerMap, getContactLive, getWaitingContacts, getCompletedContacts, getDealOwnerId, updateContact } from '../lib/hubspot.js';
 import { processContact } from '../lib/process.js';
+import { runTriggers } from '../lib/triggers.js';
 import { hasMailFrom } from '../lib/gmail.js';
 import { logEvent, bumpStat, getLastSend, shouldReplyCheck } from '../lib/activity.js';
 // NOTE: the send window is no longer global — it's per-campaign and evaluated in each
@@ -74,6 +75,20 @@ export default async function handler(req, res) {
       for (const d of completed) { try { await checkReply(d, { unenroll: false }); } catch { /* keep sweeping */ } }
     } catch (e) {
       summary.errors.push({ warn: `reply sweep: ${e.message}` });
+    }
+
+    // Engagement rules: the pixel and click endpoints only enqueue, so evaluation happens here.
+
+    try {
+
+      const t = await runTriggers(50);
+
+      if (t.processed) summary.triggers = t;
+
+    } catch (e) {
+
+      summary.errors.push(`triggers: ${e.message}`);
+
     }
 
     return res.status(200).json(summary);
