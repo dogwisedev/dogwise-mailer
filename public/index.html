@@ -586,18 +586,19 @@ table.tbl tr:hover td{background:#fafbfd}
           <div class="wgroup">
             <span class="wl">Send window</span>
             <div class="hourbox"><select id="winStart"></select><span class="to">to</span><select id="winEnd"></select></div>
-          <div class="setcard" id="trigCard" style="margin-top:14px">
-            <h3>Create a task when someone engages</h3>
-            <div class="sub">Clicks are exact. Opens are approximate, because some mail apps preload images. <b>Opened, never clicked</b> is the most useful rule: someone interested who has not found the button.</div>
-            <div class="thead"><span>When</span><span>At least</span><span>Step</span><span>Task title</span><span>Due</span><span></span></div>
-            <div id="trigRows"></div>
-            <div class="add-row"><button class="add-step" id="addTrigBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add a rule</button></div>
-          </div>
             <span class="tzchip">lead's local time</span>
           </div>
           <label class="switch"><input type="checkbox" id="stopCalled"><span class="track"></span><span class="sl">Stop if a rep logs a call</span></label>
           <span class="folder-chip" id="folderChip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-7.9a1 1 0 0 1-.8-.4l-1.1-1.4a1 1 0 0 0-.8-.4H4a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1Z"/></svg><span id="folderChipName">Unfiled</span></span>
         </div>
+      </div>
+
+      <div class="card" id="trigCard" style="padding:18px 20px;margin-bottom:14px">
+        <div class="step-top"><h3>Create a task when someone engages</h3></div>
+        <div class="howto" style="margin:0 0 14px">Clicks are exact. Opens are approximate, because some mail apps preload images. <b>Opened, never clicked</b> is the most useful rule: someone interested who has not found the button.</div>
+        <div class="thead"><span>When</span><span>At least</span><span>Step</span><span>Task title</span><span>Due</span><span></span></div>
+        <div id="trigRows"></div>
+        <div class="add-row"><button class="add-step" id="addTrigBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add a rule</button></div>
       </div>
 
       <div class="leash stagger" id="leash"></div>
@@ -991,6 +992,7 @@ function smsCount(t){ const n=(t||'').length; const seg=n===0?0:(n<=160?1:Math.c
 function renderSteps(){
   const c=campaigns[activeKey], isCl=c.type==='checklist';
   $('checklistEd').style.display=isCl?'block':'none';
+  $('trigCard').style.display=isCl?'none':'block';   // step numbers are meaningless on a checklist
   $('leash').style.display=isCl?'none':'block';
   $('addRow').style.display=isCl?'none':'flex';
   if(isCl){ renderChecklist(); $('leash').innerHTML=''; return; }
