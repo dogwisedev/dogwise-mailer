@@ -310,6 +310,40 @@ a{color:var(--navy);text-decoration:none}
 .pill.replied{background:#e6effc;color:var(--reply)}
 .pill.error{background:#fdeeec;color:var(--err)}
 .pill.skipped{background:#eef1f5;color:var(--slate)}
+/* ── Reports ─────────────────────────────────────────────────────────────── */
+.rpbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+.rpchips{display:flex;gap:6px;flex-wrap:wrap}
+.rpchip{border:1px solid var(--line);background:var(--card);color:var(--slate);border-radius:999px;
+  padding:6px 13px;font-size:12.5px;cursor:pointer;transition:.15s}
+.rpchip:hover{border-color:var(--brass-hi)}
+.rpchip.on{background:var(--navy);border-color:var(--navy);color:#fff}
+.rpgrid{display:grid;gap:16px}
+.rpcard{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;box-shadow:var(--sh-1)}
+.rpcard h4{margin:0 0 3px 0;font-size:14.5px;color:var(--ink)}
+.rpcard .rpsub{font-size:11.5px;color:var(--mute);margin-bottom:14px}
+.rpcols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:980px){.rpcols{grid-template-columns:1fr}}
+.rpkpi{display:flex;gap:22px;flex-wrap:wrap;margin-bottom:4px}
+.rpkpi div{min-width:64px}
+.rpkpi b{display:block;font-size:22px;color:var(--ink);line-height:1.15}
+.rpkpi span{font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:var(--mute)}
+.hod{display:grid;grid-template-columns:repeat(24,1fr);gap:2px}
+.hod i{display:block;height:26px;border-radius:3px;background:var(--navy-100);cursor:default}
+.hodx{display:grid;grid-template-columns:repeat(24,1fr);gap:2px;margin-top:4px;font-size:8.5px;color:var(--mute);text-align:center}
+.rpempty{color:var(--mute);font-size:13px;padding:18px 0;text-align:center}
+/* ── Trigger rules ───────────────────────────────────────────────────────── */
+.trow{display:grid;grid-template-columns:1.25fr .5fr .7fr 1.5fr .6fr auto;gap:8px;align-items:center;margin-bottom:8px}
+.trow input,.trow select{width:100%;min-width:0}
+.thead{display:grid;grid-template-columns:1.25fr .5fr .7fr 1.5fr .6fr auto;gap:8px;font-size:10.5px;
+  text-transform:uppercase;letter-spacing:.5px;color:var(--mute);margin-bottom:6px}
+.tdel{background:none;border:1px solid var(--line);color:var(--slate);border-radius:6px;padding:7px 9px;cursor:pointer;font-size:12px}
+.tdel:hover{border-color:var(--err);color:var(--err)}
+@media(max-width:980px){.trow,.thead{grid-template-columns:1fr 1fr}.thead{display:none}}
+.drow-wrap{display:flex;align-items:stretch;gap:6px;margin-bottom:6px}
+.drow-wrap .drow{flex:1;margin:0}
+.ddel{background:none;border:1px solid var(--line);color:var(--mute);border-radius:var(--r-sm);
+  padding:0 12px;cursor:pointer;font-size:13px}
+.ddel:hover{border-color:var(--err);color:var(--err)}
 .phrow{display:grid;grid-template-columns:1.1fr .8fr 1.7fr 1.1fr .8fr auto;gap:8px;align-items:center;margin-bottom:8px}
 .phrow input,.phrow select{width:100%;min-width:0}
 .phrow .phdel{background:none;border:1px solid #e2e6ec;color:var(--slate);border-radius:6px;padding:7px 9px;cursor:pointer;font-size:12px}
@@ -458,6 +492,7 @@ table.tbl tr:hover td{background:#fafbfd}
     <div class="tree" id="tree"></div>
     <div class="side-foot">
       <button class="nav-btn" id="activityBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 14 3-4 4 3 5-7"/></svg>Activity</button>
+      <button class="nav-btn" id="reportsBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-6M22 20H2"/></svg>Reports</button>
       <button class="nav-btn" id="settingsBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.17V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15H4a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 11 4.6V4a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 2.82 1.17l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 21 11h.6a2 2 0 1 1 0 4Z"/></svg>Numbers &amp; links</button>
       <div class="nav-mini">
         <button class="nav-btn" id="newFolderBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-7.9a1 1 0 0 1-.8-.4l-1.1-1.4a1 1 0 0 0-.8-.4H4a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1Z"/><path d="M12 11v5M9.5 13.5h5"/></svg>Folder</button>
@@ -483,11 +518,26 @@ table.tbl tr:hover td{background:#fafbfd}
       </div>
     </div>
 
+    <!-- REPORTS -->
+    <div id="reportsView" style="display:none">
+      <div class="rpbar">
+        <div class="rpchips" id="rpCampaigns"></div>
+        <span style="flex:1"></span>
+        <select class="selectbox" id="rpDays"><option value="7">Last 7 days</option><option value="14" selected>Last 14 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option></select>
+      </div>
+      <div class="rpgrid" id="rpBody"></div>
+      <div class="howto" style="margin-top:12px">Counters start from the day this was deployed and cannot be backfilled, so early charts will look thin. Clicks are exact. Opens are approximate: some mail apps preload the pixel and others block it, so treat open counts as direction rather than proof. Tracked links apply to marketing designs only.</div>
+    </div>
+
     <!-- ACTIVITY -->
     <div id="activityView" style="display:none">
       <div class="statgrid" id="statGrid"></div>
       <div id="campTotals" style="margin-bottom:14px"></div>
-      <div style="display:flex;justify-content:flex-end;margin-bottom:10px"><select class="selectbox" id="actFilter"><option value="">All sequences</option></select></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+        <select class="selectbox" id="actType"><option value="">All events</option><option value="sent">Sent</option><option value="opened">Opened</option><option value="clicked">Clicked</option><option value="replied">Replied</option><option value="task">Task created</option><option value="skipped">Skipped</option><option value="error">Errors</option></select>
+        <select class="selectbox" id="actChan"><option value="">Email &amp; text</option><option value="email">Email only</option><option value="sms">Text only</option></select>
+        <select class="selectbox" id="actFilter"><option value="">All sequences</option></select>
+      </div>
       <div class="tablewrap">
         <table class="tbl"><thead><tr><th>Time</th><th>Event</th><th>Contact</th><th>Sequence</th><th>Step</th><th>From</th></tr></thead><tbody id="actRows"></tbody></table>
       </div>
@@ -536,6 +586,13 @@ table.tbl tr:hover td{background:#fafbfd}
           <div class="wgroup">
             <span class="wl">Send window</span>
             <div class="hourbox"><select id="winStart"></select><span class="to">to</span><select id="winEnd"></select></div>
+          <div class="setcard" id="trigCard" style="margin-top:14px">
+            <h3>Create a task when someone engages</h3>
+            <div class="sub">Clicks are exact. Opens are approximate, because some mail apps preload images. <b>Opened, never clicked</b> is the most useful rule: someone interested who has not found the button.</div>
+            <div class="thead"><span>When</span><span>At least</span><span>Step</span><span>Task title</span><span>Due</span><span></span></div>
+            <div id="trigRows"></div>
+            <div class="add-row"><button class="add-step" id="addTrigBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add a rule</button></div>
+          </div>
             <span class="tzchip">lead's local time</span>
           </div>
           <label class="switch"><input type="checkbox" id="stopCalled"><span class="track"></span><span class="sl">Stop if a rep logs a call</span></label>
@@ -693,14 +750,18 @@ function renderDesignList(){
     return;
   }
   box.innerHTML=designIndex.map(d=>`
-    <button class="drow ${d.id===cur?'on':''}" data-pick="${esc(d.id)}">
-      <div class="dr-main">
-        <strong>${esc(d.name)}</strong>
-        <span>${esc(d.id)} \u00b7 edited ${relTime(d.updatedAt)}</span>
-      </div>
-      ${d.score!=null?`<span class="dr-score ${scoreClass(d.score)}" title="Deliverability preflight score">${d.score}</span>`:''}
-    </button>`).join('');
+    <div class="drow-wrap">
+      <button class="drow ${d.id===cur?'on':''}" data-pick="${esc(d.id)}">
+        <div class="dr-main">
+          <strong>${esc(d.name)}</strong>
+          <span>${esc(d.id)} \u00b7 edited ${relTime(d.updatedAt)}</span>
+        </div>
+        ${d.score!=null?`<span class="dr-score ${scoreClass(d.score)}" title="Deliverability preflight score">${d.score}</span>`:''}
+      </button>
+      <button class="ddel" data-del="${esc(d.id)}" title="Delete this design">\u2715</button>
+    </div>`).join('');
   box.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>chooseDesign(b.dataset.pick));
+  box.querySelectorAll('[data-del]').forEach(b=>b.onclick=e=>{ e.stopPropagation(); deleteDesign(b.dataset.del); });
 }
 function chooseDesign(id){
   if(designTarget==null) return;
@@ -850,22 +911,30 @@ document.addEventListener('click',hideCtx);
 document.addEventListener('scroll',hideCtx,true);
 
 /* ── view switching ────────────────────────────────────────────────── */
-function setNav(){ $('activityBtn').classList.toggle('active',view==='activity'); $('settingsBtn').classList.toggle('active',view==='settings'); }
+function setNav(){ $('activityBtn').classList.toggle('active',view==='activity'); $('settingsBtn').classList.toggle('active',view==='settings'); $('reportsBtn').classList.toggle('active',view==='reports'); }
+const VIEWS=['editorView','activityView','settingsView','reportsView'];
+function onlyView(id,disp){ VIEWS.forEach(v=>$(v).style.display = v===id?disp:'none'); }
 function showEditor(key){
-  view='editor'; $('editorView').style.display='grid'; $('activityView').style.display='none'; $('settingsView').style.display='none';
+  view='editor'; onlyView('editorView','grid');
   $('headActions').style.display='flex'; $('eyebrowText').textContent='Sequence'; setNav(); selectCampaign(key);
 }
 function showActivity(){
-  view='activity'; $('editorView').style.display='none'; $('settingsView').style.display='none'; $('activityView').style.display='block';
+  view='activity'; onlyView('activityView','block');
   $('headActions').style.display='none'; $('eyebrowText').textContent='Overview';
   $('campTitle').textContent='Activity'; $('campSub').textContent='Live send · open · reply feed across every sequence';
   activeKey=null; setNav(); renderTree(); loadActivity();
 }
 function showSettings(){
-  view='settings'; $('editorView').style.display='none'; $('activityView').style.display='none'; $('settingsView').style.display='block';
+  view='settings'; onlyView('settingsView','block');
   $('headActions').style.display='none'; $('eyebrowText').textContent='Configuration';
   $('campTitle').textContent='Numbers & links'; $('campSub').textContent='Where texts send from, and each sender\u2019s booking link';
   activeKey=null; setNav(); renderTree(); loadOwnersNumbers();
+}
+function showReports(){
+  view='reports'; onlyView('reportsView','block');
+  $('headActions').style.display='none'; $('eyebrowText').textContent='Reports';
+  $('campTitle').textContent='Reports'; $('campSub').textContent='Funnels, clicks and timing per sequence';
+  activeKey=null; setNav(); renderTree(); loadReports();
 }
 
 /* ── select a sequence ─────────────────────────────────────────────── */
@@ -896,6 +965,7 @@ function winMins(c){ const w=c.window||{};
            endMins:   Number.isFinite(w.endMins)  ?w.endMins  :(Number.isFinite(w.endHour)  ?w.endHour*60  :960) }; }
 function renderMeta(){
   const c=campaigns[activeKey]; const w=winMins(c);
+  setTimeout(drawTrigs,0);
   $('winStart').value=String(w.startMins); $('winEnd').value=String(w.endMins);
   $('stopCalled').checked=!!c.stopIfCalled;
   renderFolderChip();
@@ -1080,7 +1150,12 @@ async function loadActivity(){
   sel.innerHTML='<option value="">All sequences</option>'+Object.keys(campaigns).map(k=>`<option value="${k}" ${k===cur?'selected':''}>${esc(campaigns[k].label||k)}</option>`).join('');
   renderActRows();
 }
-function renderActRows(){ const f=$('actFilter').value; const ev=f?lastEvents.filter(e=>e.campaign===f):lastEvents;
+function renderActRows(){
+  const f=$('actFilter').value, ty=$('actType').value, ch=$('actChan').value;
+  const ev=lastEvents.filter(e=>
+    (!f||e.campaign===f) &&
+    (!ty||e.type===ty) &&
+    (!ch||(e.channel||'email')===ch));
   $('actRows').innerHTML=ev.map(e=>{ const d=new Date(e.t); const time=d.toLocaleDateString(undefined,{month:'short',day:'numeric'})+' '+d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
     return `<tr><td style="white-space:nowrap;color:var(--mute)">${time}</td><td><span class="pill ${e.type}">${e.type}</span> ${e.channel?`<span class="chan ${e.channel}">${e.channel}</span>`:''}</td><td>${esc(e.contact||e.detail||'')}</td><td>${esc(campaigns[e.campaign]?.label||e.campaign||'')}</td><td>${e.step||''}</td><td style="color:var(--mute)">${esc(e.sender||'')}</td></tr>`; }).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--mute);padding:26px">No activity yet — events appear here as messages send</td></tr>';
 }
@@ -1281,7 +1356,208 @@ $('designNewBtn').onclick=()=>{
   if(i!=null) openBuilder(i);
 };
 $('addStepBtn').onclick=()=>{ const c=campaigns[activeKey]; if(c.type==='checklist')return; (c.steps=c.steps||[]).push(newStep('email')); renderSteps(); scheduleDraft(); };
-$('actFilter').onchange=renderActRows;
+$('actFilter').onchange=renderActRows; $('actType').onchange=renderActRows; $('actChan').onchange=renderActRows;
+$('reportsBtn').onclick=showReports;
+
+/* ── Reports: hand-rolled SVG, no charting library ───────────────────────── */
+let rpData=null, rpSel=[];
+const RP_C={sent:'var(--sent)',opened:'var(--open)',clicked:'var(--navy)',replied:'var(--reply)'};
+
+async function loadReports(){
+  $('rpBody').innerHTML='<div class="rpempty">Loading\u2026</div>';
+  const days=$('rpDays').value;
+  const qs = rpSel.length ? '&campaigns='+rpSel.map(encodeURIComponent).join(',') : '';
+  let d;
+  try{
+    const r=await api('/api/analytics?days='+days+qs);
+    if(!r.ok) throw new Error((await r.json().catch(()=>({}))).error||('HTTP '+r.status));
+    d=await r.json();
+  }catch(e){ $('rpBody').innerHTML='<div class="rpempty">Could not load reports: '+esc(e.message)+'</div>'; return; }
+  if(d.configured===false){ $('rpBody').innerHTML='<div class="rpempty">No database configured, so there is nothing to report on yet.</div>'; return; }
+  rpData=d; drawCampaignChips(); drawReports();
+}
+
+function drawCampaignChips(){
+  const keys=Object.keys(campaigns);
+  $('rpCampaigns').innerHTML=keys.map(k=>
+    `<button class="rpchip ${rpSel.includes(k)?'on':''}" data-rp="${esc(k)}">${esc(campaigns[k].label||k)}</button>`).join('')
+    || '<span class="rpempty">No sequences yet</span>';
+  $('rpCampaigns').querySelectorAll('[data-rp]').forEach(b=>b.onclick=()=>{
+    const k=b.dataset.rp;
+    rpSel = rpSel.includes(k) ? rpSel.filter(x=>x!==k) : [...rpSel,k];
+    loadReports();
+  });
+}
+
+function pct(n,d){ return d?Math.round(1000*n/d)/10:0; }
+
+/* Horizontal funnel: one row per step, bar width relative to that step's sends. */
+function svgFunnel(steps){
+  if(!steps.length) return '<div class="rpempty">No steps</div>';
+  const max=Math.max(1,...steps.map(s=>s.sent));
+  const rowH=54, W=560, L=104, BW=W-L-58;
+  const h=steps.length*rowH+8;
+  let g='';
+  steps.forEach((s,i)=>{
+    const y=i*rowH+14;
+    const w=m=>Math.max(s[m]?2:0, BW*(s[m]||0)/max);
+    g+=`<text x="0" y="${y+9}" font-size="11" fill="var(--slate)">Step ${s.step}${s.channel==='sms'?' \u00b7 text':''}</text>`;
+    g+=`<text x="0" y="${y+24}" font-size="9.5" fill="var(--mute)">${esc((s.subject||'').slice(0,16))}</text>`;
+    [['sent',0],['opened',9],['clicked',18],['replied',27]].forEach(([m,dy])=>{
+      if(!s[m] && m!=='sent') return;
+      g+=`<rect x="${L}" y="${y+dy-6}" width="${w(m)}" height="7" rx="3.5" fill="${RP_C[m]}" opacity="${m==='sent'?0.28:0.95}"><title>${m}: ${s[m]}</title></rect>`;
+    });
+    g+=`<text x="${L+BW+8}" y="${y+9}" font-size="11" fill="var(--ink)">${s.sent}</text>`;
+    g+=`<text x="${L+BW+8}" y="${y+24}" font-size="9.5" fill="var(--mute)">${s.openRate!=null?s.openRate+'% open':''}</text>`;
+  });
+  return `<svg viewBox="0 0 ${W} ${h}" style="width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">${g}</svg>`;
+}
+
+/* Ranked bars: which link actually got clicked. */
+function svgLinkBars(links){
+  if(!links.length) return '<div class="rpempty">No clicks recorded yet. Tracked links apply to marketing designs only.</div>';
+  const max=Math.max(...links.map(l=>l.clicks));
+  const rowH=34, W=560, L=0, BW=W-150;
+  let g='', h=links.length*rowH+6;
+  links.forEach((l,i)=>{
+    const y=i*rowH+12;
+    let host=l.url; try{ host=new URL(l.url).hostname.replace(/^www\./,''); }catch(e){}
+    g+=`<text x="0" y="${y}" font-size="11" fill="var(--ink)">${esc(host)}<title>${esc(l.url)}</title></text>`;
+    g+=`<text x="0" y="${y+13}" font-size="9.5" fill="var(--mute)">step ${l.step}</text>`;
+    g+=`<rect x="${W-BW+40}" y="${y-8}" width="${Math.max(2,(BW-46)*l.clicks/max)}" height="10" rx="5" fill="var(--navy)"/>`;
+    g+=`<text x="${W-4}" y="${y+1}" font-size="11" text-anchor="end" fill="var(--ink)">${l.clicks}</text>`;
+  });
+  return `<svg viewBox="0 0 ${W} ${h}" style="width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">${g}</svg>`;
+}
+
+/* 24-cell heatmap. Hours are UTC, labelled as such rather than guessed. */
+function hodGrid(grid,metric){
+  const row=(grid&&grid[metric])||Array(24).fill(0);
+  const max=Math.max(1,...row);
+  const cells=row.map((n,h)=>{
+    const a=n?(0.15+0.85*n/max):0;
+    return `<i style="background:${n?`rgba(29,78,137,${a.toFixed(2)})`:'var(--navy-100)'}" title="${String(h).padStart(2,'0')}:00 UTC \u2014 ${n} ${metric}"></i>`;
+  }).join('');
+  const labs=Array.from({length:24},(_,h)=>`<span>${h%3===0?h:''}</span>`).join('');
+  return `<div class="hod">${cells}</div><div class="hodx">${labs}</div>`;
+}
+
+function svgSparkline(byDay,days){
+  const metrics=['sent','opened','clicked'];
+  const series=metrics.map(m=>days.map(d=>(byDay[d]||{})[m]||0));
+  const max=Math.max(1,...series.flat());
+  const W=560,H=90,step=days.length>1?W/(days.length-1):W;
+  let g='';
+  series.forEach((vals,si)=>{
+    const pts=vals.map((v,i)=>`${(i*step).toFixed(1)},${(H-6-(H-16)*v/max).toFixed(1)}`).join(' ');
+    g+=`<polyline points="${pts}" fill="none" stroke="${RP_C[metrics[si]]}" stroke-width="2" stroke-linejoin="round"/>`;
+  });
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">${g}</svg>`;
+}
+
+function svgTto(tto){
+  const max=Math.max(1,...tto.map(t=>t.n));
+  if(!tto.some(t=>t.n)) return '<div class="rpempty">No opens recorded yet</div>';
+  const W=560,H=110,bw=W/tto.length;
+  let g='';
+  tto.forEach((t,i)=>{
+    const bh=(H-28)*t.n/max;
+    g+=`<rect x="${i*bw+6}" y="${H-24-bh}" width="${bw-12}" height="${Math.max(2,bh)}" rx="4" fill="var(--open)" opacity=".9"><title>${t.bucket}: ${t.n}</title></rect>`;
+    g+=`<text x="${i*bw+bw/2}" y="${H-9}" font-size="10" text-anchor="middle" fill="var(--mute)">${t.bucket}</text>`;
+    if(t.n) g+=`<text x="${i*bw+bw/2}" y="${H-30-bh}" font-size="10" text-anchor="middle" fill="var(--slate)">${t.n}</text>`;
+  });
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">${g}</svg>`;
+}
+
+function drawReports(){
+  const keys=Object.keys(rpData.campaigns||{});
+  if(!keys.length){ $('rpBody').innerHTML='<div class="rpempty">Nothing recorded yet. Charts fill in as sends, opens and clicks happen.</div>'; return; }
+  const days=rpData.days||[];
+  $('rpBody').innerHTML=keys.map(k=>{
+    const c=rpData.campaigns[k], t=c.totals||{};
+    return `<div class="rpcard">
+      <h4>${esc(c.label||k)}</h4>
+      <div class="rpsub">${esc(k)} \u00b7 ${c.type==='checklist'?'checklist':'sequence'}</div>
+      <div class="rpkpi">
+        <div><b>${t.sent||0}</b><span>Sent</span></div>
+        <div><b>${t.opened||0}</b><span>Opened</span></div>
+        <div><b>${pct(t.opened||0,t.sent||0)}%</b><span>Open rate</span></div>
+        <div><b>${t.clicked||0}</b><span>Clicked</span></div>
+        <div><b>${pct(t.clicked||0,t.sent||0)}%</b><span>Click rate</span></div>
+        <div><b>${t.replied||0}</b><span>Replied</span></div>
+      </div>
+    </div>
+    <div class="rpcols">
+      <div class="rpcard"><h4>Step funnel</h4><div class="rpsub">Faint bar is sends. Solid bars are opens, clicks, replies.</div>${svgFunnel(c.steps||[])}</div>
+      <div class="rpcard"><h4>Which links get clicked</h4><div class="rpsub">Ranked by total clicks across all steps</div>${svgLinkBars(c.links||[])}</div>
+      <div class="rpcard"><h4>Sent, opened, clicked</h4><div class="rpsub">${days.length} days \u00b7 green sent, amber opened, navy clicked</div>${svgSparkline(c.byDay||{},days)}</div>
+      <div class="rpcard"><h4>Time from send to first open</h4><div class="rpsub">Useful for choosing step delays</div>${svgTto(c.timeToOpen||[])}</div>
+      <div class="rpcard" style="grid-column:1/-1"><h4>When opens happen</h4><div class="rpsub">Hour of day in UTC. Compare against your send window.</div>${hodGrid(c.hourOfDay,'opened')}</div>
+    </div>`;
+  }).join('');
+}
+$('rpDays').onchange=loadReports;
+/* Delete a marketing design. The API returns 409 with the sequences still using it. */
+async function deleteDesign(id){
+  const d=designIndex.find(x=>x.id===id);
+  if(!confirm(`Delete the design "${d?d.name:id}"?\n\nThis cannot be undone.`)) return;
+  let res=await api('/api/designs',{method:'DELETE',body:JSON.stringify({id})});
+  if(res.status===409){
+    const info=await res.json().catch(()=>({}));
+    const uses=(info.uses||[]).map(u=>typeof u==='string'?u:`${u.campaign||u.key||'?'} step ${u.step??'?'}`).join(', ');
+    if(!confirm(`Still used by: ${uses||'a live sequence'}.\n\nDelete anyway? Those steps will fail to send until you pick another design.`)) return;
+    res=await api('/api/designs',{method:'DELETE',body:JSON.stringify({id,force:true})});
+  }
+  if(res.ok){ designIndex=(await res.json()).designs||[]; renderDesignList(); toast('Design deleted','ok'); }
+  else { const e=await res.json().catch(()=>({})); toast(e.error||'Could not delete','err'); }
+}
+
+/* ── Trigger rules: campaign-level engagement automations ────────────────── */
+const TRIG_WHEN=[['clicks','Clicked a link'],['opens','Opened the email'],['opens_no_click','Opened, never clicked']];
+function trigRowHtml(r,i,nsteps){
+  const steps=Array.from({length:nsteps},(_,n)=>n+1);
+  return `<div class="trow" data-i="${i}">
+    <select data-f="when">${TRIG_WHEN.map(([v,l])=>`<option value="${v}"${r.when===v?' selected':''}>${l}</option>`).join('')}</select>
+    <input type="number" min="1" max="100" data-f="gte" value="${r.gte||1}">
+    <select data-f="step"><option value="">Any</option>${steps.map(n=>`<option value="${n}"${Number(r.step)===n?' selected':''}>${n}</option>`).join('')}</select>
+    <input type="text" data-f="title" placeholder="Call {{contact}} about the payment link" value="${esc(r.title||'')}">
+    <input type="number" min="0" max="90" data-f="dueInDays" value="${r.dueInDays??1}">
+    <button class="tdel" data-f="del" title="Remove">\u2715</button>
+  </div>`;
+}
+function drawTrigs(){
+  const c=campaigns[activeKey]; if(!c) return;
+  c.triggers=c.triggers||[];
+  const n=(c.steps||[]).length;
+  $('trigRows').innerHTML=c.triggers.length?c.triggers.map((r,i)=>trigRowHtml(r,i,n)).join('')
+    :'<div class="empty" style="padding:10px 0">No rules. Sends carry on as normal.</div>';
+  $('trigRows').querySelectorAll('.trow').forEach(row=>{
+    const i=+row.dataset.i;
+    row.querySelectorAll('[data-f]').forEach(el=>{
+      const f=el.dataset.f;
+      if(f==='del'){ el.onclick=()=>{ c.triggers.splice(i,1); drawTrigs(); scheduleDraft(); }; return; }
+      const ev = el.tagName==='SELECT'?'onchange':'oninput';
+      el[ev]=()=>{
+        let v=el.value;
+        if(f==='gte'||f==='dueInDays') v=Math.max(0,parseInt(v||'0',10)||0);
+        if(f==='step') v = v===''?null:parseInt(v,10);
+        c.triggers[i][f]=v;
+        if(!c.triggers[i].id) c.triggers[i].id='r'+Date.now().toString(36)+i;
+        c.triggers[i].action='hubspot_task';
+        scheduleDraft();
+      };
+    });
+  });
+}
+$('addTrigBtn').onclick=()=>{
+  const c=campaigns[activeKey]; if(!c) return;
+  c.triggers=c.triggers||[];
+  c.triggers.push({id:'r'+Date.now().toString(36),when:'opens_no_click',gte:3,step:null,
+    action:'hubspot_task',title:'Call {{contact}} \u2014 opened but has not clicked',dueInDays:1,once:true});
+  drawTrigs(); scheduleDraft();
+};
+
+
 $('search').oninput=renderTree;
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).style.display='none');
 document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{ if(e.target===m)m.style.display='none'; }));
