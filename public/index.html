@@ -356,12 +356,12 @@ a{color:var(--navy);text-decoration:none}
 .chan.sms{background:#e6effc;color:var(--reply)}
 
 /* ── activity view ── */
-.statgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.statgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px}
 .statcard{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-1);padding:17px 18px;position:relative;overflow:hidden}
 .statcard::after{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--navy)}
-.statcard.a::after{background:var(--open)} .statcard.g::after{background:var(--sent)} .statcard.e::after{background:var(--err)}
+.statcard.a::after{background:var(--open)} .statcard.g::after{background:var(--sent)} .statcard.e::after{background:var(--err)} .statcard.c::after{background:var(--navy)}
 .statcard .big{font-family:'Bricolage Grotesque';font-weight:800;font-size:34px;line-height:1;color:var(--ink)}
-.statcard.a .big{color:var(--open)} .statcard.g .big{color:var(--sent)} .statcard.e .big{color:var(--err)}
+.statcard.a .big{color:var(--open)} .statcard.g .big{color:var(--sent)} .statcard.e .big{color:var(--err)} .statcard.c .big{color:var(--navy)}
 .statcard .lbl{font-size:12px;font-weight:600;color:var(--ink);margin-top:8px}
 .statcard .wk{font-size:11px;color:var(--mute);margin-top:3px}
 .tablewrap{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-1);overflow:hidden;margin-bottom:14px}
@@ -439,6 +439,7 @@ table.tbl tr:hover td{background:#fafbfd}
 
 :focus-visible{outline:2px solid var(--brass);outline-offset:2px;border-radius:4px}
 
+@media (max-width:1400px){.statgrid{grid-template-columns:repeat(3,1fr)}}
 @media (max-width:1080px){.ed{grid-template-columns:1fr}.rail{position:static}.statgrid{grid-template-columns:repeat(2,1fr)}}
 @media (max-width:760px){.app.on{grid-template-columns:1fr}.side{display:none}.wrap{padding:18px 16px 50px}.row,.meta .row3{grid-template-columns:1fr}.head{flex-direction:column;align-items:flex-start}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -533,10 +534,10 @@ table.tbl tr:hover td{background:#fafbfd}
     <div id="activityView" style="display:none">
       <div class="statgrid" id="statGrid"></div>
       <div id="campTotals" style="margin-bottom:14px"></div>
+      <div class="rpchips" id="actChips" style="margin-bottom:10px"></div>
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px;flex-wrap:wrap">
         <select class="selectbox" id="actType"><option value="">All events</option><option value="sent">Sent</option><option value="opened">Opened</option><option value="clicked">Clicked</option><option value="replied">Replied</option><option value="task">Task created</option><option value="skipped">Skipped</option><option value="error">Errors</option></select>
         <select class="selectbox" id="actChan"><option value="">Email &amp; text</option><option value="email">Email only</option><option value="sms">Text only</option></select>
-        <select class="selectbox" id="actFilter"><option value="">All sequences</option></select>
       </div>
       <div class="tablewrap">
         <table class="tbl"><thead><tr><th>Time</th><th>Event</th><th>Contact</th><th>Sequence</th><th>Step</th><th>From</th></tr></thead><tbody id="actRows"></tbody></table>
@@ -1139,23 +1140,66 @@ function renderRail(key){ if(!actCache||!key)return; const s=(actCache.allTime?.
   $('rFeed').innerHTML=evts.length?evts.map(e=>{ const d=new Date(e.t); return `<div class="evt"><span class="pill ${e.type}">${e.type}</span>${e.channel?`<span class="chan ${e.channel}">${e.channel}</span>`:''}<span class="who">${esc(e.contact||'')}</span><span class="when">${d.toLocaleDateString(undefined,{month:'short',day:'numeric'})}</span></div>`; }).join(''):'<div class="empty">No activity yet</div>';
 }
 async function loadActivity(){
-  const data=await fetchActivity(); if(!data)return; const {events,stats,allTime}=data; const at=(allTime&&allTime.total)||{};
-  $('statGrid').innerHTML=`
-    <div class="statcard"><div class="big">${stats.today.sent}</div><div class="lbl">Sent today</div><div class="wk">${stats.week.sent} this week · ${at.sent||0} all time</div></div>
-    <div class="statcard a"><div class="big">${stats.today.opened}</div><div class="lbl">Opened today</div><div class="wk">${stats.week.opened} this week · ${at.opened||0} all time</div></div>
-    <div class="statcard g"><div class="big">${stats.today.replied}</div><div class="lbl">Replied today</div><div class="wk">${stats.week.replied} this week · ${at.replied||0} all time</div></div>
-    <div class="statcard e"><div class="big">${stats.today.errors}</div><div class="lbl">Errors today</div><div class="wk">${stats.week.errors} this week</div></div>`;
-  const pc=(allTime&&allTime.perCampaign)||{};
-  const rows=Object.entries(pc).map(([k,s])=>{ const op=s.sent?Math.round((s.opened||0)/s.sent*100):0,rp=s.sent?Math.round((s.replied||0)/s.sent*100):0; return `<tr><td style="font-weight:600">${esc(campaigns[k]?.label||k)}</td><td>${s.sent||0}</td><td>${s.opened||0} <span style="color:var(--mute)">(${op}%)</span></td><td>${s.replied||0} <span style="color:var(--mute)">(${rp}%)</span></td></tr>`; }).join('');
-  $('campTotals').innerHTML=rows?`<div class="tablewrap"><table class="tbl"><thead><tr><th>Sequence · all time</th><th>Sent</th><th>Opened</th><th>Replied</th></tr></thead><tbody>${rows}</tbody></table></div>`:'';
-  lastEvents=events; const sel=$('actFilter'),cur=sel.value;
-  sel.innerHTML='<option value="">All sequences</option>'+Object.keys(campaigns).map(k=>`<option value="${k}" ${k===cur?'selected':''}>${esc(campaigns[k].label||k)}</option>`).join('');
+  const data=await fetchActivity(); if(!data)return;
+  lastEvents=data.events; lastStats=data; drawActChips(); renderActivity();
+}
+
+/* Sequence chips. Empty selection = every sequence. */
+let actSel=[], lastStats=null;
+function drawActChips(){
+  const keys=Object.keys(campaigns);
+  $('actChips').innerHTML=keys.map(k=>
+    `<button class="rpchip ${actSel.includes(k)?'on':''}" data-ac="${esc(k)}">${esc(campaigns[k].label||k)}</button>`).join('');
+  $('actChips').querySelectorAll('[data-ac]').forEach(b=>b.onclick=()=>{
+    const k=b.dataset.ac;
+    actSel = actSel.includes(k) ? actSel.filter(x=>x!==k) : [...actSel,k];
+    drawActChips(); renderActivity();
+  });
+}
+
+/* Tiles + all-time table, both scoped to the chip selection.
+   All-time figures come from persistent per-campaign counters, so scoping them stays
+   exact. Today and this week are counted from the activity feed, which is capped at
+   2,000 entries, so those are labelled "in feed" rather than presented as absolute. */
+function renderActivity(){
+  const d=lastStats; if(!d) return;
+  const pc=(d.allTime&&d.allTime.perCampaign)||{};
+  const keys=actSel.length?actSel:Object.keys(pc);
+  const scoped=actSel.length>0;
+
+  const at={sent:0,opened:0,clicked:0,replied:0};
+  keys.forEach(k=>{ const v=pc[k]||{}; for(const m in at) at[m]+=v[m]||0; });
+
+  const inWindow=(ms,days)=>Date.now()-ms < days*86400000;
+  const mine=lastEvents.filter(e=>!actSel.length||actSel.includes(e.campaign));
+  const cnt=(type,days)=>mine.filter(e=>e.type===type&&inWindow(e.t,days)).length;
+  const today={sent:cnt('sent',1),opened:cnt('opened',1),clicked:cnt('clicked',1),replied:cnt('replied',1),errors:cnt('error',1)};
+  const week ={sent:cnt('sent',7),opened:cnt('opened',7),clicked:cnt('clicked',7),replied:cnt('replied',7),errors:cnt('error',7)};
+  const note=scoped?'in feed':'this week';
+
+  const tile=(cls,n,lbl,wk,all)=>`<div class="statcard ${cls}"><div class="big">${n}</div><div class="lbl">${lbl}</div><div class="wk">${wk} ${note}${all!=null?` \u00b7 ${all} all time`:''}</div></div>`;
+  $('statGrid').innerHTML=
+    tile('', today.sent,'Sent today',week.sent,at.sent)+
+    tile('a',today.opened,'Opened today',week.opened,at.opened)+
+    tile('c',today.clicked,'Clicked today',week.clicked,at.clicked)+
+    tile('g',today.replied,'Replied today',week.replied,at.replied)+
+    tile('e',today.errors,'Errors today',week.errors,null);
+
+  const rows=keys.filter(k=>pc[k]).map(k=>{ const v=pc[k];
+    const r=(n)=>v.sent?Math.round((n||0)/v.sent*100):0;
+    return `<tr><td style="font-weight:600">${esc(campaigns[k]?.label||k)}</td><td>${v.sent||0}</td><td>${v.opened||0} <span style="color:var(--mute)">(${r(v.opened)}%)</span></td><td>${v.clicked||0} <span style="color:var(--mute)">(${r(v.clicked)}%)</span></td><td>${v.replied||0} <span style="color:var(--mute)">(${r(v.replied)}%)</span></td></tr>`;
+  }).join('');
+  $('campTotals').innerHTML=rows
+    ? `<div class="tablewrap"><table class="tbl"><thead><tr><th>${scoped?`Selected ${keys.length===1?'sequence':'sequences'}`:'Sequence'} \u00b7 all time</th><th>Sent</th><th>Opened</th><th>Clicked</th><th>Replied</th></tr></thead><tbody>${rows}</tbody></table></div>`
+    : '<div class="empty" style="padding:14px 0">No totals for that selection yet</div>';
+
   renderActRows();
 }
+
 function renderActRows(){
-  const f=$('actFilter').value, ty=$('actType').value, ch=$('actChan').value;
+  const ty=$('actType').value, ch=$('actChan').value;
   const ev=lastEvents.filter(e=>
-    (!f||e.campaign===f) &&
+    (!actSel.length||actSel.includes(e.campaign)) &&
     (!ty||e.type===ty) &&
     (!ch||(e.channel||'email')===ch));
   $('actRows').innerHTML=ev.map(e=>{ const d=new Date(e.t); const time=d.toLocaleDateString(undefined,{month:'short',day:'numeric'})+' '+d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
@@ -1358,7 +1402,7 @@ $('designNewBtn').onclick=()=>{
   if(i!=null) openBuilder(i);
 };
 $('addStepBtn').onclick=()=>{ const c=campaigns[activeKey]; if(c.type==='checklist')return; (c.steps=c.steps||[]).push(newStep('email')); renderSteps(); scheduleDraft(); };
-$('actFilter').onchange=renderActRows; $('actType').onchange=renderActRows; $('actChan').onchange=renderActRows;
+$('actType').onchange=renderActRows; $('actChan').onchange=renderActRows;
 $('reportsBtn').onclick=showReports;
 
 /* ── Reports: hand-rolled SVG, no charting library ───────────────────────── */
@@ -1396,7 +1440,9 @@ function pct(n,d){ return d?Math.round(1000*n/d)/10:0; }
 /* Horizontal funnel: one row per step, bar width relative to that step's sends. */
 function svgFunnel(steps){
   if(!steps.length) return '<div class="rpempty">No steps</div>';
-  const max=Math.max(1,...steps.map(s=>s.sent));
+  // Scale against the largest value of ANY metric. Scaling on sends alone overflowed
+  // whenever opens outran sends, which happens while counters are still filling up.
+  const max=Math.max(1,...steps.flatMap(s=>[s.sent,s.opened,s.clicked,s.replied].map(n=>n||0)));
   const rowH=54, W=560, L=104, BW=W-L-58;
   const h=steps.length*rowH+8;
   let g='';
