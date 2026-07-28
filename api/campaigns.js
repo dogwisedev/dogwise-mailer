@@ -25,9 +25,11 @@ function validCampaign(c) {
 
   // Per-sequence send window (optional; omitted => 9–16 in the recipient's timezone).
   if (c.window) {
-    const { startHour, endHour } = c.window;
-    if (!Number.isInteger(startHour) || !Number.isInteger(endHour) || startHour < 0 || endHour > 24 || startHour >= endHour) {
-      return 'Send window must be whole hours with start before end (e.g. 9 to 16)';
+    const { startHour, endHour, startMins, endMins } = c.window;
+    const s0 = Number.isFinite(startMins) ? startMins : (Number.isFinite(startHour) ? startHour * 60 : NaN);
+    const e0 = Number.isFinite(endMins)   ? endMins   : (Number.isFinite(endHour)   ? endHour   * 60 : NaN);
+    if (!Number.isInteger(s0) || !Number.isInteger(e0) || s0 < 0 || e0 > 1440 || s0 >= e0) {
+      return 'Send window must start before it ends and sit within one day (e.g. 8:30 am to 4 pm)';
     }
   }
 
