@@ -31,7 +31,7 @@ export default async function handler(req, res) {
         const r = await processContact(fresh, campaigns, ownerMap);
         if (r.status === 'sent') summary.sent++;
         else if (r.status === 'completed') { summary.completed++; if (r.detail) summary.sent++; }
-        else if (r.status === 'skipped') summary.deferred++;
+        else if (r.status === 'skipped') { summary.deferred++; (summary.skips ||= []).push({ email, reason: r.detail }); }
         else summary.errors.push({ email, error: r.detail });
       } catch (err) {
         summary.errors.push({ email, error: err.message });
