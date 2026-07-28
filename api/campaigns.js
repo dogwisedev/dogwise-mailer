@@ -1,5 +1,6 @@
 // api/campaigns.js — dashboard API. GET list (+ folders) / POST upsert one / DELETE one.
 import { getCampaigns, saveCampaigns, storeConfigured, getFolders } from '../lib/store.js';
+import { validateTriggers } from '../lib/triggers.js';
 
 function authorized(req) {
   const auth = req.headers['authorization'] || '';
