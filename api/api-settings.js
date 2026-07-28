@@ -3,6 +3,7 @@
 // screen can each save independently without clobbering the other. All phone-number
 // ids are trimmed on the way in (so a stray trailing space can never reach OpenPhone).
 import { getSettings, saveSettings } from '../lib/settings.js';
+import { normalizePlaceholders } from '../lib/tokens.js';
 
 export default async function handler(req, res) {
   const auth = req.headers['authorization'] || '';
@@ -39,6 +40,12 @@ export default async function handler(req, res) {
         if (Object.keys(inner).length) clean[String(ownerId)] = inner;
       }
       next.smsNumbers = clean;
+    }
+
+    if (body.placeholders !== undefined) {
+      const { placeholders, errors } = normalizePlaceholders(body.placeholders);
+      if (errors.length) return res.status(400).json({ error: errors.join(' · ') });
+      next.placeholders = placeholders;
     }
 
     return res.status(200).json(await saveSettings(next));
