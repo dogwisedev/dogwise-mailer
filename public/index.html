@@ -1091,13 +1091,40 @@ function renderCustomItems(){ const c=campaigns[activeKey]; c.customItems=c.cust
 
 /* ── save / create / delete / test ─────────────────────────────────── */
 async function save(){
-  const c=campaigns[activeKey]; c.label=$('campLabel').value.trim()||c.label; c.sendAs=$('campSendAs').value.trim(); if(!c.sendAs)delete c.sendAs;
+  // Every failure path must surface. This used to call res.json() unguarded, so a 500 or
+  // 404 (which return an HTML error page, not JSON) threw before any toast ran and the
+  // button just sat there disabled — a save that fails silently and leaves a draft.
+  const c=campaigns[activeKey];
+  if(!c){ toast('No sequence selected','err'); return; }
+  c.label=$('campLabel').value.trim()||c.label;
+  c.sendAs=$('campSendAs').value.trim(); if(!c.sendAs)delete c.sendAs;
   $('saveBtn').disabled=true;
-  const res=await api('/api/campaigns',{method:'POST',body:JSON.stringify({key:activeKey,campaign:c})});
-  const data=await res.json(); $('saveBtn').disabled=false;
-  if(!res.ok)return toast(data.error||'Could not save','err');
-  campaigns=data.campaigns; localStorage.removeItem('dwm_draft_'+activeKey); $('draftNote').style.display='none';
-  toast('Saved — live within 5 minutes for due sends','ok'); renderTree();
+  try{
+    const res=await api('/api/campaigns',{method:'POST',body:JSON.stringify({key:activeKey,campaign:c})});
+    const raw=await res.text();
+    let data=null; try{ data=JSON.parse(raw); }catch(e){ /* not JSON */ }
+    if(!res.ok){
+      const msg=(data&&data.error) || `HTTP ${res.status} — ${raw.slice(0,120).replace(/<[^>]*>/g,' ').trim()||'no detail'}`;
+      console.error('save failed',res.status,raw);
+      toast(msg,'err');
+      return;
+    }
+    if(!data||!data.campaigns){
+      console.error('save returned unexpected body',raw);
+      toast('Saved, but the response was unreadable — reload to confirm','err');
+      return;
+    }
+    campaigns=data.campaigns;
+    localStorage.removeItem('dwm_draft_'+activeKey);
+    $('draftNote').style.display='none';
+    toast('Saved — live within 5 minutes for due sends','ok');
+    renderTree();
+  }catch(err){
+    console.error('save threw',err);
+    toast('Could not save: '+(err.message||err),'err');
+  }finally{
+    $('saveBtn').disabled=false;
+  }
 }
 function newStep(channel){
   if(channel==='sms') return {channel:'sms',days:{weekday:true,weekend:true},delayDaysAfter:null,body:'Hi {{firstname}}, '};
