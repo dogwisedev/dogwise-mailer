@@ -310,6 +310,13 @@ a{color:var(--navy);text-decoration:none}
 .pill.replied{background:#e6effc;color:var(--reply)}
 .pill.error{background:#fdeeec;color:var(--err)}
 .pill.skipped{background:#eef1f5;color:var(--slate)}
+.phrow{display:grid;grid-template-columns:1.1fr .8fr 1.7fr 1.1fr .8fr auto;gap:8px;align-items:center;margin-bottom:8px}
+.phrow input,.phrow select{width:100%;min-width:0}
+.phrow .phdel{background:none;border:1px solid #e2e6ec;color:var(--slate);border-radius:6px;padding:7px 9px;cursor:pointer;font-size:12px}
+.phrow .phdel:hover{border-color:#d9534f;color:#d9534f}
+.phhead{display:grid;grid-template-columns:1.1fr .8fr 1.7fr 1.1fr .8fr auto;gap:8px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--mute);margin-bottom:6px}
+.phwarn{color:#b4530a}
+@media(max-width:880px){.phrow,.phhead{grid-template-columns:1fr 1fr}.phhead{display:none}}
 .chan{font-size:9px;font-weight:700;padding:1px 6px;border-radius:5px;text-transform:uppercase;letter-spacing:.04em}
 .chan.email{background:var(--navy-100);color:var(--navy)}
 .chan.sms{background:#e6effc;color:var(--reply)}
@@ -489,7 +496,7 @@ table.tbl tr:hover td{background:#fafbfd}
 
     <!-- SETTINGS -->
     <div id="settingsView" style="display:none">
-      <div class="tabs"><button class="on" data-tab="numbers" id="tabNumbers">SMS numbers</button><button data-tab="links" id="tabLinks">Booking links</button></div>
+      <div class="tabs"><button class="on" data-tab="numbers" id="tabNumbers">SMS numbers</button><button data-tab="links" id="tabLinks">Booking links</button><button data-tab="ph" id="tabPh">Placeholders</button></div>
       <div class="setgrid">
         <div class="setcard" id="numbersCard">
           <h3>SMS sending numbers</h3>
@@ -505,6 +512,14 @@ table.tbl tr:hover td{background:#fafbfd}
           <div class="add-row"><button class="add-step" id="addSenderLinkBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add a sender</button></div>
           <div class="field" style="margin-top:16px"><label>Fallback link (used when a sender has no personal link)</label><input type="text" id="fallbackLink" placeholder="https://dogwiseacademy.com/contact"></div>
           <div class="modal-actions"><button class="btn btn-brass" id="saveSettingsBtn">Save links</button></div>
+        </div>
+        <div class="setcard" id="phCard" style="display:none">
+          <h3>Email &amp; text placeholders</h3>
+          <div class="sub">Give a HubSpot property a short token — for example <code>{{dog_name}}</code> — then use it in any email, text or marketing design. The <b>fallback</b> is what sends when the property is empty, so a sentence never ends up with a hole in it.</div>
+          <div class="phhead"><span>Token</span><span>From</span><span>HubSpot property</span><span>Fallback</span><span>Format</span><span></span></div>
+          <div id="phRows"></div>
+          <div class="add-row"><button class="add-step" id="addPhBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add a placeholder</button></div>
+          <div class="modal-actions"><button class="btn btn-brass" id="savePhBtn">Save placeholders</button></div>
         </div>
       </div>
     </div>
@@ -898,6 +913,9 @@ $('folderChip').onclick=e=>{ openItemMenu({preventDefault(){},clientX:e.clientX,
 /* ── STEPS editor ──────────────────────────────────────────────────── */
 const TOK_EMAIL=[['{{firstname}}','Lead first name'],['{{lastname}}','Lead last name'],['{{email}}','Lead email — for form links'],['{{sender_firstname}}','Deal owner first name'],['{{sender_lastname}}','Deal owner last name']];
 const TOK_SMS=[['{{firstname}}','Lead first name'],['{{sender_firstname}}','Deal owner first name']];
+/* Registry tokens from Settings → Placeholders, appended to the chip row everywhere. */
+function customToks(){ return (appSettings.placeholders||[]).filter(p=>p.token).map(p=>[`{{${p.token}}}`,`${p.object}.${p.property}`]); }
+function toksFor(sms){ return [...(sms?TOK_SMS:TOK_EMAIL),...customToks()]; }
 function smsCount(t){ const n=(t||'').length; const seg=n===0?0:(n<=160?1:Math.ceil(n/153)); return `${n} char${n===1?'':'s'} · ${seg} SMS`; }
 
 function renderSteps(){
@@ -945,7 +963,7 @@ function renderSteps(){
           ${!c.sendAs?`<div class="hint">This is a marketing email. If you'd rather it didn't go out from each rep's own mailbox, put a shared address in \u201cSend everything from\u201d above \u2014 entirely optional.</div>`:''}
         </div>`:`
         <div class="field" style="margin-bottom:6px"><label>${sms?'Text message':'Email body'}</label><textarea data-i="${i}" data-f="body" ${sms?'data-sms="1" style="min-height:96px"':''}>${esc(step.body||'')}</textarea>
-          <div class="tokens">${(sms?TOK_SMS:TOK_EMAIL).map(([t,d])=>`<span class="token" title="${d}" data-tok="${t}">${t}</span>`).join('')}</div>
+          <div class="tokens">${toksFor(sms).map(([t,d])=>`<span class="token" title="${d}" data-tok="${t}">${t}</span>`).join('')}</div>
         </div>`}
         ${sms?`<div class="smsmeta"><span class="note">Sends from the deal owner\u2019s number for the lead\u2019s region.</span><span class="count" data-count="${i}">${smsCount(step.body)}</span></div>`:''}
         <div class="daypills"><span class="dl">Sends on</span>
@@ -1068,7 +1086,7 @@ function renderActRows(){ const f=$('actFilter').value; const ev=f?lastEvents.fi
 }
 
 /* ── settings: numbers + links ─────────────────────────────────────── */
-let appSettings={senderLinks:{},senderLinkFallback:'',smsNumbers:{}}, ownersCache=[], numbersCache=[], numbersConfigured=false;
+let appSettings={senderLinks:{},senderLinkFallback:'',smsNumbers:{},placeholders:[]}, ownersCache=[], numbersCache=[], numbersConfigured=false;
 async function loadSettings(){ const res=await api('/api/settings'); if(res.ok)appSettings=await res.json(); }
 async function loadOwnersNumbers(){
   const [o,n]=await Promise.all([api('/api/owners'),api('/api/openphone-numbers')]);
@@ -1113,8 +1131,96 @@ function renderLinks(){ const wrap=$('senderLinkRows'); const ent=Object.entries
 $('addSenderLinkBtn').onclick=()=>{ const d=document.createElement('div'); d.className='srow'; d.innerHTML=`<input type="text" placeholder="person@dogwiseacademy.com" data-f="email"><input type="text" placeholder="https://calendly.com/…" data-f="url"><button class="ibtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>`; d.querySelector('button').onclick=()=>d.remove(); $('senderLinkRows').appendChild(d); };
 $('saveSettingsBtn').onclick=async()=>{ const links={}; $('senderLinkRows').querySelectorAll('.srow').forEach(r=>{ const em=r.querySelector('[data-f="email"]').value.trim(),url=r.querySelector('[data-f="url"]').value.trim(); if(em&&url)links[em]=url; }); const res=await api('/api/settings',{method:'POST',body:JSON.stringify({senderLinks:links,senderLinkFallback:$('fallbackLink').value.trim()})}); if(res.ok){ appSettings=await res.json(); toast('Booking links saved','ok'); } else toast('Could not save','err'); };
 $('addCustomItemBtn').onclick=()=>{ const c=campaigns[activeKey]; (c.customItems=c.customItems||[]).push({label:'',property:'',mode:'empty',value:'',block:''}); renderCustomItems(); };
-$('tabNumbers').onclick=()=>{ $('tabNumbers').classList.add('on'); $('tabLinks').classList.remove('on'); $('numbersCard').style.display='block'; $('linksCard').style.display='none'; };
-$('tabLinks').onclick=()=>{ $('tabLinks').classList.add('on'); $('tabNumbers').classList.remove('on'); $('linksCard').style.display='block'; $('numbersCard').style.display='none'; };
+function setTab(which){
+  const map={numbers:['tabNumbers','numbersCard'],links:['tabLinks','linksCard'],ph:['tabPh','phCard']};
+  for(const [k,[btn,card]] of Object.entries(map)){
+    $(btn).classList.toggle('on',k===which);
+    $(card).style.display = k===which?'block':'none';
+  }
+  if(which==='ph') renderPlaceholders();
+}
+$('tabNumbers').onclick=()=>setTab('numbers');
+$('tabLinks').onclick=()=>setTab('links');
+$('tabPh').onclick=()=>setTab('ph');
+
+/* ── Placeholders editor ─────────────────────────────────────────────────────
+   Property lists come from /api/hs-properties so you pick a real property
+   instead of typing an internal name. HubSpot silently ignores unknown names on
+   reads, so a typo would otherwise show up as a blank in a sent email. */
+const PH_OBJECTS=['deal','contact','owner'], PH_FORMATS=['raw','currency','date','number'];
+let phData=[], phProps={};
+
+async function loadProps(object){
+  if(phProps[object]) return phProps[object];
+  try{
+    const res=await api('/api/hs-properties?object='+encodeURIComponent(object));
+    if(!res.ok) throw new Error((await res.json().catch(()=>({}))).error||res.status);
+    phProps[object]=(await res.json()).properties||[];
+  }catch(e){ toast('Could not load '+object+' properties: '+e.message,'err'); phProps[object]=[]; }
+  return phProps[object];
+}
+
+function phRowHtml(r,i){
+  return `<div class="phrow" data-i="${i}">
+    <input type="text" data-f="token" placeholder="dog_name" value="${esc(r.token||'')}">
+    <select data-f="object">${PH_OBJECTS.map(o=>`<option value="${o}"${r.object===o?' selected':''}>${o}</option>`).join('')}</select>
+    <select data-f="property"><option value="">loading…</option></select>
+    <input type="text" data-f="fallback" placeholder="e.g. your dog" value="${esc(r.fallback||'')}">
+    <select data-f="format">${PH_FORMATS.map(f=>`<option value="${f}"${(r.format||'raw')===f?' selected':''}>${f}</option>`).join('')}</select>
+    <button class="phdel" data-f="del" title="Remove">✕</button>
+  </div>`;
+}
+
+async function fillPropSelect(i){
+  const row=$('phRows').querySelector(`.phrow[data-i="${i}"]`); if(!row)return;
+  const obj=phData[i].object||'deal', sel=row.querySelector('[data-f="property"]');
+  const props=await loadProps(obj), cur=phData[i].property||'';
+  let html='<option value="">— pick a property —</option>'+props.map(p=>`<option value="${esc(p.name)}"${p.name===cur?' selected':''}>${esc(p.label)} · ${esc(p.name)}</option>`).join('');
+  // Property configured but no longer present on this object — make it loud, not silent.
+  if(cur && !props.some(p=>p.name===cur)) html+=`<option value="${esc(cur)}" selected>⚠ ${esc(cur)} — not found on ${obj}</option>`;
+  sel.innerHTML=html;
+  sel.classList.toggle('phwarn', !!(cur && !props.some(p=>p.name===cur)));
+}
+
+function drawPh(){
+  $('phRows').innerHTML=phData.map((r,i)=>phRowHtml(r,i)).join('')||'<div class="empty">No placeholders yet</div>';
+  phData.forEach((_,i)=>fillPropSelect(i));
+  $('phRows').querySelectorAll('.phrow').forEach(row=>{
+    const i=+row.dataset.i;
+    row.querySelector('[data-f="token"]').oninput=e=>{ phData[i].token=e.target.value.trim().toLowerCase().replace(/[^a-z0-9_]/g,'_'); e.target.value=phData[i].token; };
+    row.querySelector('[data-f="object"]').onchange=async e=>{ phData[i].object=e.target.value; phData[i].property=''; await fillPropSelect(i); };
+    row.querySelector('[data-f="property"]').onchange=e=>{
+      phData[i].property=e.target.value;
+      const hit=(phProps[phData[i].object]||[]).find(x=>x.name===e.target.value);
+      if(hit&&hit.format&&(phData[i].format||'raw')==='raw'){ phData[i].format=hit.format; row.querySelector('[data-f="format"]').value=hit.format; }
+    };
+    row.querySelector('[data-f="fallback"]').oninput=e=>phData[i].fallback=e.target.value;
+    row.querySelector('[data-f="format"]').onchange=e=>phData[i].format=e.target.value;
+    row.querySelector('[data-f="del"]').onclick=()=>{ phData.splice(i,1); drawPh(); };
+  });
+}
+
+function renderPlaceholders(){
+  phData=JSON.parse(JSON.stringify(appSettings.placeholders||[]));
+  if(!phData.length) phData.push({token:'',object:'deal',property:'',fallback:'',format:'raw'});
+  drawPh();
+}
+
+$('addPhBtn').onclick=()=>{ phData.push({token:'',object:'deal',property:'',fallback:'',format:'raw'}); drawPh(); };
+
+$('savePhBtn').onclick=async()=>{
+  const rows=phData.filter(r=>r.token||r.property);
+  const res=await api('/api/settings',{method:'POST',body:JSON.stringify({placeholders:rows})});
+  if(res.ok){
+    appSettings=await res.json();
+    toast('Placeholders saved','ok');
+    renderPlaceholders();
+    if(activeKey&&campaigns[activeKey]) renderSteps();   // refresh the chip rows
+  } else {
+    const e=await res.json().catch(()=>({}));
+    toast(e.error||'Could not save','err');
+  }
+};
 
 /* ── rich text (email only) ────────────────────────────────────────── */
 const EMOJIS=['🐕','🐶','🦴','🐾','🎉','✅','☑️','📋','📝','💳','💉','📅','⏰','🏠','🚗','❤️','🙌','👋','😊','🌟','⭐','🔥','⚠️','📣','🎓','🍖','📸','💬','☀️','🎾','🛁','😴'];
@@ -1123,6 +1229,11 @@ function insAt(ta,t){ const s=ta.selectionStart; ta.value=ta.value.slice(0,s)+t+
 function closeEmoji(){ document.querySelectorAll('.emoji-pop').forEach(p=>p.remove()); }
 function previewHtml(body){ const e=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); let x=e(body);
   x=x.replace(/\{\{\s*firstname\s*\}\}/gi,'Alex').replace(/\{\{\s*lastname\s*\}\}/gi,'Sample').replace(/\{\{\s*sender_firstname\s*\}\}/gi,'Anita').replace(/\{\{\s*sender_lastname\s*\}\}/gi,'Oliveira').replace(/\{\{\s*email\s*\}\}/gi,'alex%40example.com').replace(/\{\{\s*sender_booking_link\s*\}\}/gi,(appSettings.senderLinkFallback||'https://example.com/book')).replace(/\{\{\s*days_left\s*\}\}/gi,'5').replace(/\{\{\s*deal\.program_start_date\s*\}\}/gi,'Monday, August 17').replace(/\{\{\s*deal\.amount_outstanding\s*\}\}/gi,'$450.00').replace(/\{\{\s*deal\.remaining_balance_link\s*\}\}/gi,'https://pay.stripe.com/x');
+  for(const ph of (appSettings.placeholders||[])){
+    if(!ph.token) continue;
+    const sample = ph.fallback || ({currency:'$4,500.00',date:'Monday, August 17',number:'4,500'}[ph.format] || ('['+ph.token+']'));
+    x = x.replace(new RegExp('\\{\\{\\s*'+ph.token+'\\s*\\}\\}','gi'), sample);
+  }
   x=x.replace(/\[\[button:([^\|\]]*)\|([^\]]*)\]\]/g,(_,t,u)=>!u.trim()?t.trim():`<div style="margin:16px 0"><a href="${u.trim()}" style="background:#1D4E89;color:#fff;padding:11px 24px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block">${t.trim()}</a></div>`);
   x=x.replace(/!\[([^\]]*)\]\(([^)]+)\)/g,(_,a,u)=>`<img src="${u.trim()}" alt="${a.trim()}" style="max-width:100%;border-radius:6px;margin:8px 0">`);
   x=x.replace(/\[([^\]]+)\]\(([^)]*)\)/g,(_,t,u)=>u.trim()?`<a href="${u.trim()}" style="color:#1D4E89">${t.trim()}</a>`:t.trim());
