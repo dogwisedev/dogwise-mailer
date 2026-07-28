@@ -872,15 +872,26 @@ function selectCampaign(key){
 }
 
 /* ── meta: window + stop-if-called + folder chip ───────────────────── */
+/* Window edges as minutes-since-midnight, tolerating legacy {startHour,endHour}. */
+function minLabel(m){ if(m===1440)return 'midnight'; const h=Math.floor(m/60),mi=m%60;
+  if(mi===0){ if(h===0)return '12 am'; if(h===12)return 'noon'; return (h%12===0?12:h%12)+(h<12?' am':' pm'); }
+  return (h%12===0?12:h%12)+':'+String(mi).padStart(2,'0')+(h<12?' am':' pm'); }
+function winMins(c){ const w=c.window||{};
+  return { startMins: Number.isFinite(w.startMins)?w.startMins:(Number.isFinite(w.startHour)?w.startHour*60:540),
+           endMins:   Number.isFinite(w.endMins)  ?w.endMins  :(Number.isFinite(w.endHour)  ?w.endHour*60  :960) }; }
 function renderMeta(){
-  const c=campaigns[activeKey]; const w=c.window||{startHour:9,endHour:16};
-  $('winStart').value=String(w.startHour); $('winEnd').value=String(w.endHour);
+  const c=campaigns[activeKey]; const w=winMins(c);
+  $('winStart').value=String(w.startMins); $('winEnd').value=String(w.endMins);
   $('stopCalled').checked=!!c.stopIfCalled;
   renderFolderChip();
 }
 function renderFolderChip(){ const c=campaigns[activeKey]; const f=folders.find(x=>x.id===c.folder); $('folderChipName').textContent=f?f.name:'Unfiled'; }
-$('winStart').onchange=()=>{ const c=campaigns[activeKey]; c.window=c.window||{startHour:9,endHour:16}; c.window.startHour=+$('winStart').value; if(c.window.endHour<=c.window.startHour)c.window.endHour=Math.min(24,c.window.startHour+1),$('winEnd').value=String(c.window.endHour); scheduleDraft(); };
-$('winEnd').onchange=()=>{ const c=campaigns[activeKey]; c.window=c.window||{startHour:9,endHour:16}; c.window.endHour=+$('winEnd').value; if(c.window.endHour<=c.window.startHour){ c.window.startHour=Math.max(0,c.window.endHour-1); $('winStart').value=String(c.window.startHour); } scheduleDraft(); };
+$('winStart').onchange=()=>{ const c=campaigns[activeKey]; const w=winMins(c); w.startMins=+$('winStart').value;
+  if(w.endMins<=w.startMins){ w.endMins=Math.min(1440,w.startMins+15); $('winEnd').value=String(w.endMins); }
+  c.window={startMins:w.startMins,endMins:w.endMins}; scheduleDraft(); };
+$('winEnd').onchange=()=>{ const c=campaigns[activeKey]; const w=winMins(c); w.endMins=+$('winEnd').value;
+  if(w.endMins<=w.startMins){ w.startMins=Math.max(0,w.endMins-15); $('winStart').value=String(w.startMins); }
+  c.window={startMins:w.startMins,endMins:w.endMins}; scheduleDraft(); };
 $('stopCalled').onchange=()=>{ campaigns[activeKey].stopIfCalled=$('stopCalled').checked; scheduleDraft(); };
 $('folderChip').onclick=e=>{ openItemMenu({preventDefault(){},clientX:e.clientX,clientY:e.clientY},activeKey); };
 
@@ -1005,7 +1016,7 @@ function newStep(channel){
 async function createCampaign(){
   const name=$('newName').value.trim(); if(!name)return;
   const key=name.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,40)||'seq_'+Date.now();
-  campaigns[key]={label:name,window:{startHour:9,endHour:16},steps:[newStep('email')]};
+  campaigns[key]={label:name,window:{startMins:540,endMins:960},steps:[newStep('email')]};
   $('newModal').style.display='none'; $('newName').value=''; showEditor(key); toast('Draft created — write your first step, then Save');
 }
 async function deleteCampaign(){
@@ -1144,8 +1155,8 @@ function enhanceTextareas(scope){
 }
 
 /* ── window hour options + wiring + boot ───────────────────────────── */
-(function(){ const label=h=>h===24?'midnight':h===12?'noon':h===0?'12 am':h<12?h+' am':(h-12)+' pm'; let a='',b='';
-  for(let h=0;h<=24;h++){ a+=`<option value="${h}">${label(h)}</option>`; } $('winStart').innerHTML=a; $('winEnd').innerHTML=a; })();
+(function(){ let a='';
+  for(let m=0;m<=1440;m+=15){ a+=`<option value="${m}">${minLabel(m)}</option>`; } $('winStart').innerHTML=a; $('winEnd').innerHTML=a; })();
 $('loginBtn').onclick=login; $('pw').addEventListener('keydown',e=>e.key==='Enter'&&login());
 $('saveBtn').onclick=save; $('deleteBtn').onclick=deleteCampaign;
 $('newCampBtn').onclick=()=>{ $('newModal').style.display='flex'; $('newName').focus(); };
