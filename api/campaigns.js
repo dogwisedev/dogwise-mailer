@@ -23,6 +23,9 @@ function validCampaign(c) {
   if (!Array.isArray(c.steps) || c.steps.length === 0) return 'Campaign needs at least one step';
   if (c.sendAs && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.sendAs)) return 'Send-from must be a full email address (or blank for deal owner)';
 
+  const trigErr = validateTriggers(c.triggers);
+  if (trigErr) return trigErr;
+
   // Per-sequence send window (optional; omitted => 9–16 in the recipient's timezone).
   if (c.window) {
     const { startHour, endHour, startMins, endMins } = c.window;
