@@ -5,7 +5,7 @@
 // The destination is resolved SERVER-SIDE from dwm:links:<sendId>. The URL contains no
 // attacker-controllable target, so this cannot be used as an open redirect.
 import { getLinks, countClick, bump, queueTrigger } from '../lib/metrics.js';
-import { lookupSend, logEvent } from '../lib/activity.js';
+import { lookupSend, logEvent, bumpStat } from '../lib/activity.js';
 
 const FALLBACK = process.env.APP_URL || 'https://dogwiseacademy.com';
 
@@ -26,7 +26,12 @@ export default async function handler(req, res) {
         sendId, index, campaign: meta?.campaign, step: meta?.step, url: entry.url
       });
 
-      if (c.first) await bump({ campaign: meta?.campaign, step: meta?.step, metric: 'clicked' });
+      if (c.first) {
+        await bump({ campaign: meta?.campaign, step: meta?.step, metric: 'clicked' });
+        // Also feed the all-time stats hash so the Activity tiles can show clicks
+        // alongside sent/opened/replied.
+        await bumpStat(meta?.campaign, 'clicked');
+      }
       await bump({ campaign: meta?.campaign, step: meta?.step, metric: 'click_hit' });
 
       if (c.first) {
