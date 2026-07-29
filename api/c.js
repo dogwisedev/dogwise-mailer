@@ -7,7 +7,9 @@
 import { getLinks, countClick, bump, queueTrigger } from '../lib/metrics.js';
 import { lookupSend, logEvent, bumpStat } from '../lib/activity.js';
 
-const FALLBACK = process.env.APP_URL || 'https://dogwiseacademy.com';
+import { appBaseUrl } from '../lib/util.js';
+
+const FALLBACK = appBaseUrl();
 
 export default async function handler(req, res) {
   const sendId = String(req.query.e || '');
