@@ -2,32 +2,60 @@
 //
 //   GET /api/health?secret=<ADMIN_PASSWORD>
 //
-// Two jobs:
-//
-//  1. Show the URLs the app will actually put in emails. APP_URL is easy to get subtly
-//     wrong (missing scheme, trailing slash, markdown syntax pasted from a chat window),
-//     and the only other way to find out is to send a real email and inspect it.
-//
-//  2. Prove every module resolves. Node links ESM imports before running anything, so a
-//     missing or misnamed file takes the whole function down with a 500 in ~150ms and no
-//     outgoing requests. Importing everything here surfaces that in one click instead of
-//     waiting for a cron to fail.
+// WHY THE IMPORTS ARE STATIC
+// The first version of this file did `await import(pathVariable)` in a loop. Vercel's
+// bundler traces STATIC imports to decide which files ship in a function's bundle, and a
+// computed dynamic path is untraceable — so every module reported "Cannot find module"
+// even though the files were present and the cron was using them happily. Static imports
+// force them into the bundle, and the check becomes implicit: if a module were missing or
+// misnamed, THIS function would fail to load and return a 500 naming the file. So a 200
+// from this endpoint means every module resolved.
 import { appBaseUrl } from '../lib/util.js';
+import * as activity from '../lib/activity.js';
+import * as bounces from '../lib/bounces.js';
+import * as checklist from '../lib/checklist.js';
+import * as designs from '../lib/designs.js';
+import * as gmail from '../lib/gmail.js';
+import * as hubspot from '../lib/hubspot.js';
+import * as links from '../lib/links.js';
+import * as marketing from '../lib/marketing.js';
+import * as metrics from '../lib/metrics.js';
+import * as processMod from '../lib/process.js';
+import * as region from '../lib/region.js';
+import * as settings from '../lib/settings.js';
+import * as sms from '../lib/sms.js';
+import * as spamcheck from '../lib/spamcheck.js';
+import * as store from '../lib/store.js';
+import * as tokens from '../lib/tokens.js';
+import * as triggers from '../lib/triggers.js';
 
-const MODULES = [
-  '../lib/activity.js', '../lib/bounces.js', '../lib/checklist.js', '../lib/designs.js',
-  '../lib/gmail.js', '../lib/hubspot.js', '../lib/links.js', '../lib/marketing.js',
-  '../lib/metrics.js', '../lib/process.js', '../lib/region.js', '../lib/settings.js',
-  '../lib/sms.js', '../lib/spamcheck.js', '../lib/store.js', '../lib/throttle.js',
-  '../lib/tokens.js', '../lib/triggers.js', '../lib/util.js'
-];
+const MODULES = {
+  'lib/activity.js': activity, 'lib/bounces.js': bounces, 'lib/checklist.js': checklist,
+  'lib/designs.js': designs, 'lib/gmail.js': gmail, 'lib/hubspot.js': hubspot,
+  'lib/links.js': links, 'lib/marketing.js': marketing, 'lib/metrics.js': metrics,
+  'lib/process.js': processMod, 'lib/region.js': region, 'lib/settings.js': settings,
+  'lib/sms.js': sms, 'lib/spamcheck.js': spamcheck, 'lib/store.js': store,
+  'lib/tokens.js': tokens, 'lib/triggers.js': triggers
+};
 
-const ENV_KEYS = [
-  'APP_URL', 'ADMIN_PASSWORD', 'CRON_SECRET', 'HUBSPOT_TOKEN',
-  'KV_REST_API_URL', 'KV_REST_API_TOKEN',
-  'OPENPHONE_API_KEY', 'GOOGLE_CLIENT_EMAIL', 'GOOGLE_PRIVATE_KEY',
-  'SENDER_ADDRESS', 'SENDER_NAME', 'MAX_PER_RUN', 'HUBSPOT_MIN_GAP_MS'
-];
+// Names taken from the code, not guessed. Secrets report presence only.
+const REQUIRED = ['ADMIN_PASSWORD', 'CRON_SECRET', 'HUBSPOT_TOKEN', 'KV_REST_API_URL',
+                  'KV_REST_API_TOKEN', 'GOOGLE_SA_EMAIL', 'GOOGLE_SA_KEY'];
+const RECOMMENDED = ['APP_URL', 'SENDER_ADDRESS', 'SENDER_NAME', 'OPENPHONE_API_KEY'];
+const OPTIONAL = ['MAX_PER_RUN', 'HUBSPOT_MIN_GAP_MS', 'SEND_START_HOUR', 'SEND_END_HOUR',
+                  'SEND_TZ', 'BRAND_NAME', 'BRAND_DOMAIN'];
+const PLAIN = new Set(['APP_URL', 'SENDER_ADDRESS', 'SENDER_NAME', 'MAX_PER_RUN',
+                       'HUBSPOT_MIN_GAP_MS', 'SEND_START_HOUR', 'SEND_END_HOUR', 'SEND_TZ',
+                       'BRAND_NAME', 'BRAND_DOMAIN']);
+
+function readEnv(keys) {
+  const out = {};
+  for (const k of keys) {
+    const v = process.env[k];
+    out[k] = v ? (PLAIN.has(k) ? v : `set (${v.length} chars)`) : 'not set';
+  }
+  return out;
+}
 
 export default async function handler(req, res) {
   const secret = req.query.secret || '';
@@ -38,41 +66,39 @@ export default async function handler(req, res) {
   const base = appBaseUrl();
   const rawAppUrl = process.env.APP_URL || null;
 
-  // Flag a raw value that needed cleaning up, so a bad env var is visible rather than
-  // quietly corrected. It still works, but you probably want to fix the source.
-  const notes = [];
+  const problems = [];
+  const warnings = [];
+
   if (rawAppUrl && rawAppUrl.trim() !== base) {
-    notes.push(`APP_URL was normalised from ${JSON.stringify(rawAppUrl)} to ${base} — worth correcting the env var itself`);
+    problems.push(`APP_URL is malformed. It was cleaned up to ${base} for this response, but fix the env var: it should be exactly ${base}`);
   }
   if (!rawAppUrl) {
-    notes.push(`APP_URL is not set, so the base URL is inferred from the Vercel production domain (${base}). It will change if you change the primary domain.`);
+    warnings.push(`APP_URL is not set, so the base URL is inferred from the Vercel production domain (${base}). It will silently change if you change the primary domain.`);
   }
+  for (const k of REQUIRED) if (!process.env[k]) problems.push(`${k} is not set`);
+  if (!process.env.SENDER_ADDRESS) {
+    problems.push('SENDER_ADDRESS is not set, so marketing emails ship with no physical postal address in the footer. Commercial email is legally required to include one.');
+  }
+  if (!process.env.SENDER_NAME) warnings.push("SENDER_NAME is not set, so the footer falls back to 'Dogwise Academy'.");
 
-  const env = {};
-  for (const k of ENV_KEYS) {
-    const v = process.env[k];
-    // Never echo secrets. Presence and length only, except for the non-secret ones.
-    env[k] = v ? (['APP_URL', 'SENDER_NAME', 'SENDER_ADDRESS', 'MAX_PER_RUN', 'HUBSPOT_MIN_GAP_MS'].includes(k) ? v : `set (${v.length} chars)`) : 'MISSING';
+  const moduleExports = {};
+  for (const [name, mod] of Object.entries(MODULES)) {
+    const n = Object.keys(mod || {}).length;
+    moduleExports[name] = n ? `ok (${n} exports)` : 'loaded but exports nothing';
   }
-
-  const modules = {};
-  for (const m of MODULES) {
-    try { await import(m); modules[m.replace('../', '')] = 'ok'; }
-    catch (e) { modules[m.replace('../', '')] = `FAILED — ${e.message}`; }
-  }
-  const broken = Object.entries(modules).filter(([, v]) => v !== 'ok').map(([k]) => k);
 
   return res.status(200).json({
-    healthy: broken.length === 0 && env.HUBSPOT_TOKEN !== 'MISSING' && env.KV_REST_API_URL !== 'MISSING',
+    healthy: problems.length === 0,
     baseUrl: base,
     urlsInEmails: {
       trackedLink: `${base}/api/c?e=<sendId>&i=0`,
       openPixel: `${base}/api/px?e=<sendId>`,
       unsubscribe: `${base}/api/unsubscribe?e=<sendId>`
     },
-    notes,
-    brokenModules: broken,
-    modules,
-    env
+    problems,
+    warnings,
+    note: 'A 200 from this endpoint means every lib module resolved. A 500 means one is missing or misnamed, and the Vercel log will name it.',
+    modules: moduleExports,
+    env: { required: readEnv(REQUIRED), recommended: readEnv(RECOMMENDED), optional: readEnv(OPTIONAL) }
   });
 }
