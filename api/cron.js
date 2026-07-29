@@ -48,7 +48,9 @@ export default async function handler(req, res) {
     async function checkReply(rec, { unenroll }) {
       if (campaigns[rec.properties?.dw_campaign]?.type === 'checklist') return; // onboarding stops only when the checklist is done
       if (!(await shouldReplyCheck(rec.id, 4))) return; // each contact checked at most every 4h
-      const lastSend = await getLastSend(rec.id);
+      // Scoped to the contact's current campaign, matching lib/process.js. Unscoped, a
+      // reply to an older sequence would unenrol them from the one they are in now.
+      const lastSend = await getLastSend(rec.id, rec.properties?.dw_campaign);
       if (!lastSend) return;                                    // pre-tracking sends: no window, skip
       if (!unenroll && Date.now() - lastSend > REPLY_WINDOW_MS) return; // completed: stop watching after 14d
       const email = rec.properties?.email;
