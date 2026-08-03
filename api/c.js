@@ -25,7 +25,7 @@ export default async function handler(req, res) {
     if (entry?.url) {
       const meta = await lookupSend(sendId);
       const c = await countClick({
-        sendId, index, campaign: meta?.campaign, step: meta?.step, url: entry.url
+        sendId, index, campaign: meta?.campaign, step: meta?.step, url: entry.url, label: entry.label
       });
 
       if (c.first) {
