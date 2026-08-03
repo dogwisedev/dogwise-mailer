@@ -333,8 +333,15 @@ a{color:var(--navy);text-decoration:none}
 .hodx{display:grid;grid-template-columns:repeat(24,1fr);gap:2px;margin-top:4px;font-size:8.5px;color:var(--mute);text-align:center}
 .rpempty{color:var(--mute);font-size:13px;padding:18px 0;text-align:center}
 /* ── Trigger rules ───────────────────────────────────────────────────────── */
-.trule{border:1px solid var(--line);border-radius:var(--r-sm);padding:14px 16px;margin-bottom:10px;background:var(--card)}
-.trule.on{border-color:var(--brass-hi);box-shadow:var(--sh-1)}
+.trule{border:1px solid var(--line);border-left:3px solid var(--navy-100);border-radius:var(--r-sm);
+  padding:14px 16px;margin-bottom:10px;background:var(--card)}
+.trule.on{border-left-color:var(--navy);box-shadow:var(--sh-1)}
+/* Inherit the app's control styling. Without this these render as raw browser widgets:
+   native borders and the default font size, which is why they looked like black boxes. */
+.trule input,.trule select{padding:8px 11px;border:1.5px solid var(--line);border-radius:8px;
+  font-family:inherit;font-size:12.5px;background:#fff;color:var(--ink);outline:none}
+.trule select{cursor:pointer}
+.trule input:focus,.trule select:focus{border-color:var(--brass-hi)}
 .trule-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
 .trule-head .tnum{width:22px;height:22px;border-radius:50%;background:var(--navy-100);color:var(--navy);
   font-size:11px;font-weight:700;display:grid;place-items:center;flex:none}
@@ -1510,8 +1517,10 @@ function svgLinkBars(links){
   links.forEach((l,i)=>{
     const y=i*rowH+12;
     let host=l.url; try{ host=new URL(l.url).hostname.replace(/^www\./,''); }catch(e){}
-    g+=`<text x="0" y="${y}" font-size="11" fill="var(--ink)">${esc(host)}<title>${esc(l.url)}</title></text>`;
-    g+=`<text x="0" y="${y+13}" font-size="9.5" fill="var(--mute)">step ${l.step}</text>`;
+    // Prefer the anchor text: two Stripe links both read "buy.stripe.com" otherwise.
+    const primary=(l.label||host).slice(0,34);
+    g+=`<text x="0" y="${y}" font-size="11" fill="var(--ink)">${esc(primary)}<title>${esc(l.url)}</title></text>`;
+    g+=`<text x="0" y="${y+13}" font-size="9.5" fill="var(--mute)">step ${l.step} · ${esc(host.slice(0,26))}</text>`;
     g+=`<rect x="${W-BW+40}" y="${y-8}" width="${Math.max(2,(BW-46)*l.clicks/max)}" height="10" rx="5" fill="var(--navy)"/>`;
     g+=`<text x="${W-4}" y="${y+1}" font-size="11" text-anchor="end" fill="var(--ink)">${l.clicks}</text>`;
   });
@@ -1634,9 +1643,22 @@ function tRuleHtml(r,i,nsteps){
       <select class="tmetric" data-f="metric">${T_METRIC.map(([v,l])=>`<option value="${v}"${c.metric===v?' selected':''}>${l}</option>`).join('')}</select>
       <select class="top" data-f="op">${T_OP.map(([v,l])=>`<option value="${v}"${c.op===v?' selected':''}>${l}</option>`).join('')}</select>
       <input class="tval" type="number" min="0" max="1000" data-f="value" value="${Number(c.value)||0}">
-      <span style="font-size:12px;color:var(--mute)">times</span>
+      <span style="font-size:12px;color:var(--mute)">${c.metric==='replies'?'':'times'}</span>
       ${(r.conditions||[]).length>1?`<button class="tmini danger" data-f="delcond" title="Remove condition">\u2715</button>`:''}
     </div>`).join('');
+
+  // The link filter is only consulted on a live click, so it does nothing on a delayed
+  // rule or one with no clicks condition. Show why rather than offering a dead field.
+  const hasClickCond=(r.conditions||[]).some(c=>c.metric==='clicks');
+  const linkApplies = hasClickCond && !tNeedsDelay(r) && !r.afterHours;
+  const linkFilter = linkApplies
+    ? `<div class="tgrid" style="grid-template-columns:1fr;border-top:0;padding-top:0;margin-top:8px">
+         <div><label>Only links containing &mdash; leave blank for any link</label>
+         <input type="text" data-f="linkContains" placeholder="stripe" value="${esc(r.linkContains||'')}"></div>
+       </div>`
+    : (r.linkContains
+        ? `<div class="twarn">Link filter "${esc(r.linkContains)}" is ignored on a delayed rule &mdash; it can only be checked at the moment of a click.</div>`
+        : '');
 
   const warn = tNeedsDelay(r) && !r.afterHours
     ? `<div class="twarn">This rule is about something <b>not</b> happening, so it needs a delay below. Without one it would fire the instant the email is sent.</div>` : '';
@@ -1650,16 +1672,16 @@ function tRuleHtml(r,i,nsteps){
     ${conds}
     <button class="tmini" data-f="addcond" style="margin-top:2px">+ Add condition</button>
     ${warn}
-    <div class="tgrid">
+    <div class="tgrid" style="grid-template-columns:1fr">
       <div><label>Task title</label><input type="text" data-f="title" placeholder="Call {{contact}} about the payment link" value="${esc(r.title||'')}"></div>
-      <div><label>Only step</label><select data-f="step"><option value="">Any</option>${steps.map(n=>`<option value="${n}"${Number(r.step)===n?' selected':''}>${n}</option>`).join('')}</select></div>
-      <div><label>Check after</label><select data-f="afterHours"><option value="">No delay</option>${[1,3,6,12,24,48,72,168].map(h=>`<option value="${h}"${Number(r.afterHours)===h?' selected':''}>${h<24?h+'h':(h/24)+'d'}</option>`).join('')}</select></div>
-      <div><label>Due in days</label><input type="number" min="0" max="90" data-f="dueInDays" value="${r.dueInDays??1}"></div>
     </div>
-    <div class="tgrid" style="grid-template-columns:1fr 110px;border-top:0;padding-top:0;margin-top:8px">
-      <div><label>Only links containing (optional)</label><input type="text" data-f="linkContains" placeholder="stripe" value="${esc(r.linkContains||'')}"></div>
+    <div class="tgrid" style="grid-template-columns:110px 120px 100px 1fr;border-top:0;padding-top:0;margin-top:8px">
+      <div><label>Only step</label><select data-f="step"><option value="">Any</option>${steps.map(n=>`<option value="${n}"${Number(r.step)===n?' selected':''}>${n}</option>`).join('')}</select></div>
+      <div><label>Check after</label><select data-f="afterHours"><option value="">No delay</option>${[1,3,6,12,24,48,72,168].map(h=>`<option value="${h}"${Number(r.afterHours)===h?' selected':''}>${h<24?h+'h':(h/24)+' day'+(h/24===1?'':'s')}</option>`).join('')}</select></div>
+      <div><label>Due in days</label><input type="number" min="0" max="90" data-f="dueInDays" value="${r.dueInDays??1}"></div>
       <div><label>Priority</label><select data-f="priority">${['LOW','MEDIUM','HIGH'].map(v=>`<option value="${v}"${(r.priority||'MEDIUM')===v?' selected':''}>${v[0]+v.slice(1).toLowerCase()}</option>`).join('')}</select></div>
     </div>
+    ${linkFilter}
   </div>`;
 }
 
