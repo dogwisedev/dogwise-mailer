@@ -2,7 +2,7 @@
 import { getCampaigns } from '../lib/store.js';
 import { getDueContacts, buildOwnerMap, getContactLive, getWaitingContacts, getCompletedContacts, getDealOwnerId, updateContact } from '../lib/hubspot.js';
 import { processContact } from '../lib/process.js';
-import { runTriggers } from '../lib/triggers.js';
+import { runTriggers, runSweep } from '../lib/triggers.js';
 import { hasMailFrom } from '../lib/gmail.js';
 import { logEvent, bumpStat, getLastSend, shouldReplyCheck } from '../lib/activity.js';
 // NOTE: the send window is no longer global — it's per-campaign and evaluated in each
@@ -86,6 +86,13 @@ export default async function handler(req, res) {
       const t = await runTriggers(50);
 
       if (t.processed) summary.triggers = t;
+
+      // Delayed rules ("hasn't opened in 24h") have no event to react to, so they are
+      // evaluated by sweeping the send index for sends now old enough to judge.
+
+      const sw = await runSweep();
+
+      if (sw.checked || sw.fired || sw.errors.length) summary.sweep = sw;
 
     } catch (e) {
 
