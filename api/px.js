@@ -41,7 +41,7 @@ export default async function handler(req, res) {
         // unguarded try/catch around logEmailToTimeline earlier this thread. A failed
         // PATCH looked identical to "nothing happened", which is exactly what was reported
         // for marketing sends. Now it lands in the activity feed instead of vanishing.
-        updateEmailEngagement(eng.emailId, { originalText: eng.originalText, summary })
+        updateEmailEngagement(eng.emailId, { originalText: eng.originalText, originalHtml: eng.originalHtml, summary })
           .catch(e => logEvent({ type: 'error', contact: meta?.contact, campaign: meta?.campaign, step: meta?.step,
             detail: `timeline summary update failed: ${e.message}` }));
       } else if (meta?.channel === 'email') {
