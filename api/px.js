@@ -7,6 +7,7 @@
 // prefetches images on delivery and Gmail caches them, so the count is directional heat,
 // not proof of reading. Clicks are the reliable signal.
 import { lookupSend, logEvent, bumpStat, getEngagement } from '../lib/activity.js';
+import { formatPortalTime } from '../lib/util.js';
 import { countOpen, bump, recordTimeToOpen, queueTrigger, getOpenCount, getClickCount } from '../lib/metrics.js';
 import { updateEmailEngagement } from '../lib/hubspot.js';
 
@@ -35,7 +36,7 @@ export default async function handler(req, res) {
       const eng = await getEngagement(sendId);
       if (eng?.emailId) {
         const [opens, clicks] = await Promise.all([getOpenCount(sendId), getClickCount(sendId)]);
-        const summary = `Opened ${opens.n}x, last opened ${new Date(opens.last || at).toLocaleString('en-US')}`
+        const summary = `Opened ${opens.n}x, last opened ${formatPortalTime(opens.last || at)}`
           + (clicks.total ? ` · Clicked ${clicks.total}x` : '');
         // Previously .catch(() => {}) — a silent swallow, the same failure mode as the
         // unguarded try/catch around logEmailToTimeline earlier this thread. A failed
