@@ -4,7 +4,8 @@
 //
 // The destination is resolved SERVER-SIDE from dwm:links:<sendId>. The URL contains no
 // attacker-controllable target, so this cannot be used as an open redirect.
-import { getLinks, countClick, bump, queueTrigger } from '../lib/metrics.js';
+import { getLinks, countClick, bump, queueTrigger, getOpenCount, getClickCount } from '../lib/metrics.js';
+import { updateEmailEngagement } from '../lib/hubspot.js';
 import { lookupSend, logEvent, bumpStat } from '../lib/activity.js';
 
 import { appBaseUrl } from '../lib/util.js';
@@ -41,6 +42,15 @@ export default async function handler(req, res) {
           type: 'clicked', ...(meta || {}),
           detail: `clicked "${entry.label}"`
         });
+      }
+
+      // Same in-place rewrite as api/px.js on an open — one engagement, current numbers.
+      const eng = await getEngagement(sendId);
+      if (eng?.emailId) {
+        const [opens, clicks] = await Promise.all([getOpenCount(sendId), getClickCount(sendId)]);
+        const summary = `Opened ${opens.n}x` + (opens.last ? `, last ${new Date(opens.last).toLocaleString('en-US')}` : '')
+          + ` · Clicked ${clicks.total}x (last: "${entry.label}")`;
+        updateEmailEngagement(eng.emailId, { originalText: eng.originalText, summary }).catch(() => {});
       }
 
       // Rule evaluation is deferred: a redirect must be fast.
