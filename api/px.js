@@ -6,8 +6,9 @@
 // Read the caveat at the top of lib/metrics.js before trusting the number: Apple Mail
 // prefetches images on delivery and Gmail caches them, so the count is directional heat,
 // not proof of reading. Clicks are the reliable signal.
-import { lookupSend, logEvent, bumpStat } from '../lib/activity.js';
-import { countOpen, bump, recordTimeToOpen, queueTrigger } from '../lib/metrics.js';
+import { lookupSend, logEvent, bumpStat, getEngagement } from '../lib/activity.js';
+import { countOpen, bump, recordTimeToOpen, queueTrigger, getOpenCount, getClickCount } from '../lib/metrics.js';
+import { updateEmailEngagement } from '../lib/hubspot.js';
 
 const GIF = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
 
@@ -27,6 +28,17 @@ export default async function handler(req, res) {
         if (meta?.sentAt) await recordTimeToOpen(meta.campaign, Number(meta.sentAt), at);
       }
       await bump({ campaign: meta?.campaign, step: meta?.step, metric: 'open_hit', at });
+
+      // Rewrite the SAME logged email rather than adding a note. Fire-and-forget: a rep
+      // seeing a slightly stale summary for a few seconds is fine, but we must never
+      // delay or fail the pixel response over this.
+      const eng = await getEngagement(sendId);
+      if (eng?.emailId) {
+        const [opens, clicks] = await Promise.all([getOpenCount(sendId), getClickCount(sendId)]);
+        const summary = `Opened ${opens.n}x, last opened ${new Date(opens.last || at).toLocaleString('en-US')}`
+          + (clicks.total ? ` · Clicked ${clicks.total}x` : '');
+        updateEmailEngagement(eng.emailId, { originalText: eng.originalText, summary }).catch(() => {});
+      }
 
       await queueTrigger({
         kind: 'open', sendId, campaign: meta?.campaign, step: meta?.step,
