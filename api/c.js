@@ -48,7 +48,7 @@ export default async function handler(req, res) {
       const eng = await getEngagement(sendId);
       if (eng?.emailId) {
         const [opens, clicks] = await Promise.all([getOpenCount(sendId), getClickCount(sendId)]);
-        const summary = `Opened ${opens.n}x` + (opens.last ? `, last ${new Date(opens.last).toLocaleString('en-US')}` : '')
+        const summary = `Opened ${opens.n}x` + (opens.last ? `, last ${formatPortalTime(opens.last)}` : '')
           + ` · Clicked ${clicks.total}x (last: "${entry.label}")`;
         updateEmailEngagement(eng.emailId, { originalText: eng.originalText, originalHtml: eng.originalHtml, summary })
           .catch(e => logEvent({ type: 'error', contact: meta?.contact, campaign: meta?.campaign, step: meta?.step,
