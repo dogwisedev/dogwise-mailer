@@ -10,7 +10,7 @@
 
 const BASE = 'https://api.hubapi.com';
 
-const OBJECT_PATH = { contact: 'contacts', deal: 'deals' };
+const OBJECT_PATH = { contact: 'contacts', deal: 'deals', email: 'emails' };
 
 // Types we can render sensibly in an email. Excludes files, calculated rollups, etc.
 const USABLE_TYPES = new Set(['string', 'number', 'date', 'datetime', 'enumeration', 'bool']);
@@ -80,7 +80,7 @@ export default async function handler(req, res) {
     }
 
     const properties = all
-      .filter(p => USABLE_TYPES.has(p.type) && !p.hidden)
+      .filter(p => (USABLE_TYPES.has(p.type) || p.name === 'hs_email_html') && !p.hidden)
       .map(p => ({
         name: p.name,
         label: p.label || p.name,
