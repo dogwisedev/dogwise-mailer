@@ -37,7 +37,19 @@ export default async function handler(req, res) {
         const [opens, clicks] = await Promise.all([getOpenCount(sendId), getClickCount(sendId)]);
         const summary = `Opened ${opens.n}x, last opened ${new Date(opens.last || at).toLocaleString('en-US')}`
           + (clicks.total ? ` · Clicked ${clicks.total}x` : '');
-        updateEmailEngagement(eng.emailId, { originalText: eng.originalText, summary }).catch(() => {});
+        // Previously .catch(() => {}) — a silent swallow, the same failure mode as the
+        // unguarded try/catch around logEmailToTimeline earlier this thread. A failed
+        // PATCH looked identical to "nothing happened", which is exactly what was reported
+        // for marketing sends. Now it lands in the activity feed instead of vanishing.
+        updateEmailEngagement(eng.emailId, { originalText: eng.originalText, summary })
+          .catch(e => logEvent({ type: 'error', contact: meta?.contact, campaign: meta?.campaign, step: meta?.step,
+            detail: `timeline summary update failed: ${e.message}` }));
+      } else if (meta?.channel === 'email') {
+        // Diagnostic for exactly this bug: an open happened but there is no pointer to
+        // patch, meaning the original log-to-timeline call either failed or was never
+        // reached for this send.
+        await logEvent({ type: 'error', contact: meta?.contact, campaign: meta?.campaign, step: meta?.step,
+          detail: 'open recorded but no HubSpot engagement is linked to this send — check whether it was logged at send time' });
       }
 
       await queueTrigger({
