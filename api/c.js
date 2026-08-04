@@ -50,7 +50,12 @@ export default async function handler(req, res) {
         const [opens, clicks] = await Promise.all([getOpenCount(sendId), getClickCount(sendId)]);
         const summary = `Opened ${opens.n}x` + (opens.last ? `, last ${new Date(opens.last).toLocaleString('en-US')}` : '')
           + ` · Clicked ${clicks.total}x (last: "${entry.label}")`;
-        updateEmailEngagement(eng.emailId, { originalText: eng.originalText, summary }).catch(() => {});
+        updateEmailEngagement(eng.emailId, { originalText: eng.originalText, summary })
+          .catch(e => logEvent({ type: 'error', contact: meta?.contact, campaign: meta?.campaign, step: meta?.step,
+            detail: `timeline summary update failed: ${e.message}` }));
+      } else if (meta?.channel === 'email') {
+        await logEvent({ type: 'error', contact: meta?.contact, campaign: meta?.campaign, step: meta?.step,
+          detail: 'click recorded but no HubSpot engagement is linked to this send — check whether it was logged at send time' });
       }
 
       // Rule evaluation is deferred: a redirect must be fast.
