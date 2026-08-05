@@ -573,7 +573,7 @@ table.tbl tr:hover td{background:#fafbfd}
 
     <!-- SETTINGS -->
     <div id="settingsView" style="display:none">
-      <div class="tabs"><button class="on" data-tab="numbers" id="tabNumbers">SMS numbers</button><button data-tab="links" id="tabLinks">Booking links</button><button data-tab="ph" id="tabPh">Placeholders</button></div>
+      <div class="tabs"><button class="on" data-tab="numbers" id="tabNumbers">SMS numbers</button><button data-tab="links" id="tabLinks">Booking links</button><button data-tab="prog" id="tabProg">Program links</button><button data-tab="ph" id="tabPh">Placeholders</button></div>
       <div class="setgrid">
         <div class="setcard" id="numbersCard">
           <h3>SMS sending numbers</h3>
@@ -589,6 +589,14 @@ table.tbl tr:hover td{background:#fafbfd}
           <div class="add-row"><button class="add-step" id="addSenderLinkBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add a sender</button></div>
           <div class="field" style="margin-top:16px"><label>Fallback link (used when a sender has no personal link)</label><input type="text" id="fallbackLink" placeholder="https://dogwiseacademy.com/contact"></div>
           <div class="modal-actions"><button class="btn btn-brass" id="saveSettingsBtn">Save links</button></div>
+        </div>
+        <div class="setcard" id="progCard" style="display:none">
+          <h3>Program links</h3>
+          <div class="sub">Maps each program name (the exact value in <code>type_of_program_sold</code>) to its page on your site. Maintained once here — add a program and every deal with that name links correctly, past and future, without touching a single deal record. Use the <code>{{program_link}}</code> token wherever you show the program name.</div>
+          <div id="progLinkRows"></div>
+          <div class="add-row"><button class="add-step" id="addProgLinkBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add a program</button></div>
+          <div class="field" style="margin-top:16px"><label>Fallback link (used when a program name has no match)</label><input type="text" id="progFallbackLink" placeholder="https://dogwiseacademy.com/programs"></div>
+          <div class="modal-actions"><button class="btn btn-brass" id="saveProgLinksBtn">Save program links</button></div>
         </div>
         <div class="setcard" id="phCard" style="display:none">
           <h3>Email &amp; text placeholders</h3>
@@ -1008,7 +1016,7 @@ $('stopCalled').onchange=()=>{ campaigns[activeKey].stopIfCalled=$('stopCalled')
 $('folderChip').onclick=e=>{ openItemMenu({preventDefault(){},clientX:e.clientX,clientY:e.clientY},activeKey); };
 
 /* ── STEPS editor ──────────────────────────────────────────────────── */
-const TOK_EMAIL=[['{{firstname}}','Lead first name'],['{{lastname}}','Lead last name'],['{{email}}','Lead email — for form links'],['{{sender_firstname}}','Deal owner first name'],['{{sender_lastname}}','Deal owner last name']];
+const TOK_EMAIL=[['{{firstname}}','Lead first name'],['{{lastname}}','Lead last name'],['{{email}}','Lead email — for form links'],['{{sender_firstname}}','Deal owner first name'],['{{sender_lastname}}','Deal owner last name'],['{{sender_fullname}}','Deal owner full name'],['{{sender_booking_link}}',"Deal owner's booking link"],['{{program_link}}',"This deal's program page"]];
 const TOK_SMS=[['{{firstname}}','Lead first name'],['{{sender_firstname}}','Deal owner first name']];
 /* Registry tokens from Settings → Placeholders, appended to the chip row everywhere. */
 function customToks(){ return (appSettings.placeholders||[]).filter(p=>p.token).map(p=>[`{{${p.token}}}`,`${p.object}.${p.property}`]); }
@@ -1267,12 +1275,12 @@ function renderActRows(){
 }
 
 /* ── settings: numbers + links ─────────────────────────────────────── */
-let appSettings={senderLinks:{},senderLinkFallback:'',smsNumbers:{},placeholders:[]}, ownersCache=[], numbersCache=[], numbersConfigured=false;
+let appSettings={senderLinks:{},senderLinkFallback:'',smsNumbers:{},placeholders:[],programLinks:{},programLinkFallback:''}, ownersCache=[], numbersCache=[], numbersConfigured=false;
 async function loadSettings(){ const res=await api('/api/settings'); if(res.ok)appSettings=await res.json(); }
 async function loadOwnersNumbers(){
   const [o,n]=await Promise.all([api('/api/owners'),api('/api/openphone-numbers')]);
   if(o.ok)ownersCache=(await o.json()).owners||[]; if(n.ok){ const d=await n.json(); numbersCache=d.numbers||[]; numbersConfigured=d.configured; }
-  await loadSettings(); renderNumbers(); renderLinks();
+  await loadSettings(); renderNumbers(); renderLinks(); renderProgLinks();
 }
 function numberField(pn){
   // The number is the OpenPhone phone-number id (starts with PN…), pasted directly.
@@ -1311,9 +1319,16 @@ function renderLinks(){ const wrap=$('senderLinkRows'); const ent=Object.entries
 }
 $('addSenderLinkBtn').onclick=()=>{ const d=document.createElement('div'); d.className='srow'; d.innerHTML=`<input type="text" placeholder="person@dogwiseacademy.com" data-f="email"><input type="text" placeholder="https://calendly.com/…" data-f="url"><button class="ibtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>`; d.querySelector('button').onclick=()=>d.remove(); $('senderLinkRows').appendChild(d); };
 $('saveSettingsBtn').onclick=async()=>{ const links={}; $('senderLinkRows').querySelectorAll('.srow').forEach(r=>{ const em=r.querySelector('[data-f="email"]').value.trim(),url=r.querySelector('[data-f="url"]').value.trim(); if(em&&url)links[em]=url; }); const res=await api('/api/settings',{method:'POST',body:JSON.stringify({senderLinks:links,senderLinkFallback:$('fallbackLink').value.trim()})}); if(res.ok){ appSettings=await res.json(); toast('Booking links saved','ok'); } else toast('Could not save','err'); };
+function renderProgLinks(){ const wrap=$('progLinkRows'); const ent=Object.entries(appSettings.programLinks||{}); if(!ent.length)ent.push(['','']);
+  wrap.innerHTML=ent.map(([name,url])=>`<div class="srow"><input type="text" placeholder="Board &amp; Train" value="${esc(name)}" data-f="name"><input type="text" placeholder="https://dogwiseacademy.com/programs/board-and-train" value="${esc(url)}" data-f="url"><button class="ibtn" title="Remove"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>`).join('');
+  $('progFallbackLink').value=appSettings.programLinkFallback||'';
+  wrap.querySelectorAll('.srow button').forEach(b=>b.onclick=()=>b.closest('.srow').remove());
+}
+$('addProgLinkBtn').onclick=()=>{ const d=document.createElement('div'); d.className='srow'; d.innerHTML=`<input type="text" placeholder="Board &amp; Train" data-f="name"><input type="text" placeholder="https://dogwiseacademy.com/programs/board-and-train" data-f="url"><button class="ibtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>`; d.querySelector('button').onclick=()=>d.remove(); $('progLinkRows').appendChild(d); };
+$('saveProgLinksBtn').onclick=async()=>{ const map={}; $('progLinkRows').querySelectorAll('.srow').forEach(r=>{ const nm=r.querySelector('[data-f="name"]').value.trim(),url=r.querySelector('[data-f="url"]').value.trim(); if(nm&&url)map[nm]=url; }); const res=await api('/api/settings',{method:'POST',body:JSON.stringify({programLinks:map,programLinkFallback:$('progFallbackLink').value.trim()})}); if(res.ok){ appSettings=await res.json(); toast('Program links saved','ok'); } else toast('Could not save','err'); };
 $('addCustomItemBtn').onclick=()=>{ const c=campaigns[activeKey]; (c.customItems=c.customItems||[]).push({label:'',property:'',mode:'empty',value:'',block:''}); renderCustomItems(); };
 function setTab(which){
-  const map={numbers:['tabNumbers','numbersCard'],links:['tabLinks','linksCard'],ph:['tabPh','phCard']};
+  const map={numbers:['tabNumbers','numbersCard'],links:['tabLinks','linksCard'],prog:['tabProg','progCard'],ph:['tabPh','phCard']};
   for(const [k,[btn,card]] of Object.entries(map)){
     $(btn).classList.toggle('on',k===which);
     $(card).style.display = k===which?'block':'none';
@@ -1322,6 +1337,7 @@ function setTab(which){
 }
 $('tabNumbers').onclick=()=>setTab('numbers');
 $('tabLinks').onclick=()=>setTab('links');
+$('tabProg').onclick=()=>setTab('prog');
 $('tabPh').onclick=()=>setTab('ph');
 
 /* ── Placeholders editor ─────────────────────────────────────────────────────
@@ -1409,7 +1425,7 @@ function wrapSel(ta,b,a){ const s=ta.selectionStart,e=ta.selectionEnd,sel=ta.val
 function insAt(ta,t){ const s=ta.selectionStart; ta.value=ta.value.slice(0,s)+t+ta.value.slice(ta.selectionEnd); ta.dispatchEvent(new Event('input')); ta.focus(); ta.selectionStart=ta.selectionEnd=s+t.length; }
 function closeEmoji(){ document.querySelectorAll('.emoji-pop').forEach(p=>p.remove()); }
 function previewHtml(body){ const e=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); let x=e(body);
-  x=x.replace(/\{\{\s*firstname\s*\}\}/gi,'Alex').replace(/\{\{\s*lastname\s*\}\}/gi,'Sample').replace(/\{\{\s*sender_firstname\s*\}\}/gi,'Anita').replace(/\{\{\s*sender_lastname\s*\}\}/gi,'Oliveira').replace(/\{\{\s*email\s*\}\}/gi,'alex%40example.com').replace(/\{\{\s*sender_booking_link\s*\}\}/gi,(appSettings.senderLinkFallback||'https://example.com/book')).replace(/\{\{\s*days_left\s*\}\}/gi,'5').replace(/\{\{\s*deal\.program_start_date\s*\}\}/gi,'Monday, August 17').replace(/\{\{\s*deal\.amount_outstanding\s*\}\}/gi,'$450.00').replace(/\{\{\s*deal\.remaining_balance_link\s*\}\}/gi,'https://pay.stripe.com/x');
+  x=x.replace(/\{\{\s*firstname\s*\}\}/gi,'Alex').replace(/\{\{\s*lastname\s*\}\}/gi,'Sample').replace(/\{\{\s*sender_firstname\s*\}\}/gi,'Anita').replace(/\{\{\s*sender_lastname\s*\}\}/gi,'Oliveira').replace(/\{\{\s*email\s*\}\}/gi,'alex%40example.com').replace(/\{\{\s*sender_booking_link\s*\}\}/gi,(appSettings.senderLinkFallback||'https://example.com/book')).replace(/\{\{\s*days_left\s*\}\}/gi,'5').replace(/\{\{\s*deal\.program_start_date\s*\}\}/gi,'Monday, August 17').replace(/\{\{\s*deal\.amount_outstanding\s*\}\}/gi,'$450.00').replace(/\{\{\s*deal\.remaining_balance_link\s*\}\}/gi,'https://pay.stripe.com/x').replace(/\{\{\s*program_link\s*\}\}/gi,(appSettings.programLinkFallback||'https://dogwiseacademy.com/programs'));
   for(const ph of (appSettings.placeholders||[])){
     if(!ph.token) continue;
     const sample = ph.fallback || ({currency:'$4,500.00',date:'Monday, August 17',number:'4,500'}[ph.format] || ('['+ph.token+']'));
