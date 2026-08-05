@@ -42,6 +42,18 @@ export default async function handler(req, res) {
       next.smsNumbers = clean;
     }
 
+    if (body.programLinks !== undefined) {
+      const clean = {};
+      for (const [name, url] of Object.entries(body.programLinks || {})) {
+        if (name.trim() && String(url).trim()) clean[name.trim()] = String(url).trim();
+      }
+      next.programLinks = clean;
+    }
+
+    if (body.programLinkFallback !== undefined) {
+      next.programLinkFallback = String(body.programLinkFallback).trim();
+    }
+
     if (body.placeholders !== undefined) {
       const { placeholders, errors } = normalizePlaceholders(body.placeholders);
       if (errors.length) return res.status(400).json({ error: errors.join(' · ') });
