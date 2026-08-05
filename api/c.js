@@ -45,14 +45,22 @@ export default async function handler(req, res) {
       }
 
       // Same in-place rewrite as api/px.js on an open — one engagement, current numbers.
+      // Same fix applies: MUST be awaited, or Vercel tears the function down mid-PATCH the
+      // instant the redirect below is sent, producing the exact "fetch failed" flood this
+      // was doing. Costs one extra HubSpot round trip before the redirect fires — real,
+      // but small (well under the 429/5xx retry budget already built into hs()), and it
+      // is the only way to make the write reliably complete.
       const eng = await getEngagement(sendId);
       if (eng?.emailId) {
         const [opens, clicks] = await Promise.all([getOpenCount(sendId), getClickCount(sendId)]);
         const summary = `Opened ${opens.n}x` + (opens.last ? `, last ${formatPortalTime(opens.last)}` : '')
           + ` · Clicked ${clicks.total}x (last: "${entry.label}")`;
-        updateEmailEngagement(eng.emailId, { originalText: eng.originalText, originalHtml: eng.originalHtml, summary })
-          .catch(e => logEvent({ type: 'error', contact: meta?.contact, campaign: meta?.campaign, step: meta?.step,
-            detail: `timeline summary update failed: ${e.message}` }));
+        try {
+          await updateEmailEngagement(eng.emailId, { originalText: eng.originalText, originalHtml: eng.originalHtml, summary });
+        } catch (e) {
+          await logEvent({ type: 'error', contact: meta?.contact, campaign: meta?.campaign, step: meta?.step,
+            detail: `timeline summary update failed: ${e.message}` });
+        }
       } else if (meta?.channel === 'email') {
         await logEvent({ type: 'error', contact: meta?.contact, campaign: meta?.campaign, step: meta?.step,
           detail: 'click recorded but no HubSpot engagement is linked to this send — check whether it was logged at send time' });
