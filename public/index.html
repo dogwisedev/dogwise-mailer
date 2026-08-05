@@ -331,6 +331,9 @@ a{color:var(--navy);text-decoration:none}
 .hod{display:grid;grid-template-columns:repeat(24,1fr);gap:2px}
 .hod i{display:block;height:26px;border-radius:3px;background:var(--navy-100);cursor:default}
 .hodx{display:grid;grid-template-columns:repeat(24,1fr);gap:2px;margin-top:4px;font-size:8.5px;color:var(--mute);text-align:center}
+.actdetail{display:block;font-size:11px;color:var(--mute);margin-top:2px;max-width:340px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:help}
+.pill.error{background:#fbe9e7;color:var(--err)}
 .rpempty{color:var(--mute);font-size:13px;padding:18px 0;text-align:center}
 /* ── Trigger rules ───────────────────────────────────────────────────────── */
 .trule{border:1px solid var(--line);border-left:3px solid var(--navy-100);border-radius:var(--r-sm);
@@ -1245,12 +1248,22 @@ function renderActivity(){
 
 function renderActRows(){
   const ty=$('actType').value, ch=$('actChan').value;
+  // No longer defaulting a missing channel to 'email' — that silently misrepresented
+  // pipeline errors (caught before a step's channel was ever determined) as email events.
+  // An unresolved channel now only shows under "Email & text" (no filter), and correctly
+  // disappears from BOTH "Email only" and "Text only", since it is genuinely neither.
   const ev=lastEvents.filter(e=>
     (!actSel.length||actSel.includes(e.campaign)) &&
     (!ty||e.type===ty) &&
-    (!ch||(e.channel||'email')===ch));
+    (!ch||e.channel===ch));
   $('actRows').innerHTML=ev.map(e=>{ const d=new Date(e.t); const time=d.toLocaleDateString(undefined,{month:'short',day:'numeric'})+' '+d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
-    return `<tr><td style="white-space:nowrap;color:var(--mute)">${time}</td><td><span class="pill ${e.type}">${e.type}</span> ${e.channel?`<span class="chan ${e.channel}">${e.channel}</span>`:''}</td><td>${esc(e.contact||e.detail||'')}</td><td>${esc(campaigns[e.campaign]?.label||e.campaign||'')}</td><td>${e.step||''}</td><td style="color:var(--mute)">${esc(e.sender||'')}</td></tr>`; }).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--mute);padding:26px">No activity yet — events appear here as messages send</td></tr>';
+    // A blank channel does NOT mean "email" — it means channel was never determined
+    // (e.g. a pipeline error caught before the step's channel was even looked up). The
+    // filter dropdown still needs a value to compare against, so it defaults display-only,
+    // but we no longer pretend a missing channel IS email when rendering the row itself.
+    const chanBadge = e.channel ? `<span class="chan ${e.channel}">${e.channel}</span>` : '';
+    const detailLine = e.detail ? `<span class="actdetail" title="${esc(e.detail)}">${esc(e.detail)}</span>` : '';
+    return `<tr><td style="white-space:nowrap;color:var(--mute)">${time}</td><td><span class="pill ${e.type}">${e.type}</span> ${chanBadge}</td><td>${esc(e.contact||'')}${detailLine}</td><td>${esc(campaigns[e.campaign]?.label||e.campaign||'')}</td><td>${e.step||''}</td><td style="color:var(--mute)">${esc(e.sender||'')}</td></tr>`; }).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--mute);padding:26px">No activity yet — events appear here as messages send</td></tr>';
 }
 
 /* ── settings: numbers + links ─────────────────────────────────────── */
