@@ -30,21 +30,24 @@ export default async function handler(req, res) {
       }
       await bump({ campaign: meta?.campaign, step: meta?.step, metric: 'open_hit', at });
 
-      // Rewrite the SAME logged email rather than adding a note. Fire-and-forget: a rep
-      // seeing a slightly stale summary for a few seconds is fine, but we must never
-      // delay or fail the pixel response over this.
+      // MUST be awaited, not fire-and-forget. This used to be a bare .catch() with no
+      // await in front, on the theory that not blocking the pixel response was worth it.
+      // It was not: Vercel tears the function down once the response is sent, so an
+      // in-flight PATCH with nothing still awaiting it gets cut off mid-request — which
+      // surfaces as exactly the generic "fetch failed" error that filled the activity
+      // feed, on almost every open, because that is close to the guaranteed outcome of
+      // racing a network call against process teardown, not an occasional flake.
       const eng = await getEngagement(sendId);
       if (eng?.emailId) {
         const [opens, clicks] = await Promise.all([getOpenCount(sendId), getClickCount(sendId)]);
         const summary = `Opened ${opens.n}x, last opened ${formatPortalTime(opens.last || at)}`
           + (clicks.total ? ` · Clicked ${clicks.total}x` : '');
-        // Previously .catch(() => {}) — a silent swallow, the same failure mode as the
-        // unguarded try/catch around logEmailToTimeline earlier this thread. A failed
-        // PATCH looked identical to "nothing happened", which is exactly what was reported
-        // for marketing sends. Now it lands in the activity feed instead of vanishing.
-        updateEmailEngagement(eng.emailId, { originalText: eng.originalText, originalHtml: eng.originalHtml, summary })
-          .catch(e => logEvent({ type: 'error', contact: meta?.contact, campaign: meta?.campaign, step: meta?.step,
-            detail: `timeline summary update failed: ${e.message}` }));
+        try {
+          await updateEmailEngagement(eng.emailId, { originalText: eng.originalText, originalHtml: eng.originalHtml, summary });
+        } catch (e) {
+          await logEvent({ type: 'error', contact: meta?.contact, campaign: meta?.campaign, step: meta?.step,
+            detail: `timeline summary update failed: ${e.message}` });
+        }
       } else if (meta?.channel === 'email') {
         // Diagnostic for exactly this bug: an open happened but there is no pointer to
         // patch, meaning the original log-to-timeline call either failed or was never
