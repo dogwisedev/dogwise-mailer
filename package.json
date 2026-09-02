@@ -4,6 +4,8 @@
   "description": "Sequence email sender — HubSpot sweep + Gmail send as deal owner (domain-wide delegation)",
   "type": "module",
   "dependencies": {
-    "google-auth-library": "^9.14.0"
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "google-auth-library": "^9.14.0",
+    "zod": "^3.25.76"
   }
 }
