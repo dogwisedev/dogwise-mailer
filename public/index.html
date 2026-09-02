@@ -1668,7 +1668,7 @@ function svgFunnel(steps){
       g+=`<rect x="${L}" y="${y+dy-6}" width="${w(m)}" height="7" rx="3.5" fill="${RP_C[m]}" opacity="${m==='sent'?0.28:0.95}"><title>${m}: ${s[m]}</title></rect>`;
     });
     g+=`<text x="${L+BW+8}" y="${y+9}" font-size="11" fill="var(--ink)">${s.sent}</text>`;
-    g+=`<text x="${L+BW+8}" y="${y+24}" font-size="9.5" fill="var(--mute)">${s.openRate!=null?s.openRate+'% open':''}</text>`;
+    g+=`<text x="${L+BW+8}" y="${y+24}" font-size="9.5" fill="var(--mute)">${s.openRate!=null?s.openRate+'% open':(s.channel==='sms'?'opens not tracked':'')}</text>`;
   });
   return `<svg viewBox="0 0 ${W} ${h}" style="width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">${g}</svg>`;
 }
@@ -1751,17 +1751,28 @@ function drawReports(){
   const days=rpData.days||[];
   $('rpBody').innerHTML=keys.map(k=>{
     const c=rpData.campaigns[k], t=c.totals||{};
+    // Some SMS steps means some "sent" can never be opened or clicked (no pixel or
+    // link tracking on texts today) — show the channel split plainly instead of
+    // quietly blending an untrackable denominator into the rate. sentByChannel /
+    // openRate / clickRate come pre-computed (email-only denominator) from
+    // lib/analyticsCore.js; fall back to the old client-side math if an older
+    // payload without them ever shows up.
+    const byChan=t.sentByChannel||null;
+    const hasSms=byChan&&byChan.sms>0;
+    const openRate=t.openRate!=null?t.openRate:pct(t.opened||0,t.sent||0);
+    const clickRate=t.clickRate!=null?t.clickRate:pct(t.clicked||0,t.sent||0);
     return `<div class="rpcard">
       <h4>${esc(c.label||k)}</h4>
-      <div class="rpsub">${esc(k)} \u00b7 ${c.type==='checklist'?'checklist':'sequence'}</div>
+      <div class="rpsub">${esc(k)} \u00b7 ${c.type==='checklist'?'checklist':'sequence'}${hasSms?` \u00b7 ${byChan.email} email \u00b7 ${byChan.sms} SMS`:''}</div>
       <div class="rpkpi">
         <div><b>${t.sent||0}</b><span>Sent</span></div>
         <div><b>${t.opened||0}</b><span>Opened</span></div>
-        <div><b>${pct(t.opened||0,t.sent||0)}%</b><span>Open rate</span></div>
+        <div><b>${openRate}%</b><span>Open rate${hasSms?' (email only)':''}</span></div>
         <div><b>${t.clicked||0}</b><span>Clicked</span></div>
-        <div><b>${pct(t.clicked||0,t.sent||0)}%</b><span>Click rate</span></div>
+        <div><b>${clickRate}%</b><span>Click rate${hasSms?' (email only)':''}</span></div>
         <div><b>${t.replied||0}</b><span>Replied</span></div>
       </div>
+      ${hasSms?`<div class="rpsub" style="margin-top:6px">Opens and clicks aren\u2019t trackable on SMS \u2014 rates above are computed against the ${byChan.email} email sends only, not all ${t.sent||0} sends.</div>`:''}
     </div>
     <div class="rpcols">
       <div class="rpcard"><h4>Step funnel</h4><div class="rpsub">Faint bar is sends. Solid bars are opens, clicks, replies.</div>${svgFunnel(c.steps||[])}</div>
