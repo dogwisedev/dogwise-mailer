@@ -803,13 +803,19 @@ function relTime(ts){
   const h=Math.floor(m/60); if(h<24) return h+'h ago';
   const d=Math.floor(h/24); return d===1?'yesterday':d+'d ago';
 }
-function openDesignModal(stepIndex){
-  designTarget=stepIndex; renderDesignList();
+function designTargetStep(){ return designTarget!=null && typeof designTarget==='object' ? campaigns[activeKey].steps[designTarget.step] : null; }
+function designTargetCurrentId(){
+  if(designTarget==null) return null;
+  if(typeof designTarget==='object'){ const st=designTargetStep(); return st?.variants?.[designTarget.variant]?.designId||null; }
+  return (campaigns[activeKey].steps[designTarget]||{}).designId;
+}
+function openDesignModal(target){
+  designTarget=target; renderDesignList();
   $('designModal').style.display='flex';
   loadDesigns().then(renderDesignList);
 }
 function renderDesignList(){
-  const cur=designTarget!=null?(campaigns[activeKey].steps[designTarget]||{}).designId:null;
+  const cur=designTargetCurrentId();
   const box=$('designList');
   if(!designIndex.length){
     box.innerHTML='<div class="empty">No designs saved yet.<br>Hit <b>Build a new one</b> to open the builder.</div>';
@@ -831,17 +837,33 @@ function renderDesignList(){
 }
 function chooseDesign(id){
   if(designTarget==null) return;
+  if(typeof designTarget==='object'){
+    const {step,variant}=designTarget, st=campaigns[activeKey].steps[step];
+    st.channel='email'; st.format='design';
+    st.variants[variant].designId=id;
+    $('designModal').style.display='none'; designTarget=null;
+    renderSteps(); scheduleDraft();
+    toast('Design "'+designName(id)+'" attached to variant '+(st.variants[variant].id||'')+' of step '+(step+1),'ok');
+    return;
+  }
   const i=designTarget, st=campaigns[activeKey].steps[i];
   st.channel='email'; st.format='design'; st.designId=id;
   $('designModal').style.display='none'; designTarget=null;
   renderSteps(); scheduleDraft();
   toast('Design "'+designName(id)+'" attached to step '+(i+1),'ok');
 }
-function openBuilder(stepIndex){
-  const st=campaigns[activeKey].steps[stepIndex];
+function openBuilder(target){
+  let st, suggestBase;
+  if(typeof target==='object'){
+    st=campaigns[activeKey].steps[target.step]?.variants?.[target.variant];
+    suggestBase=activeKey+'_s'+(target.step+1)+'_'+(st?.id||'v'+target.variant);
+  } else {
+    st=campaigns[activeKey].steps[target];
+    suggestBase=activeKey+'_s'+(target+1);
+  }
   const q=new URLSearchParams({secret:pw});
   if(st&&st.designId) q.set('id',st.designId);
-  else q.set('suggest',(activeKey+'_s'+(stepIndex+1)).replace(/[^a-z0-9_-]/g,''));
+  else q.set('suggest',suggestBase.replace(/[^a-z0-9_-]/g,''));
   window.open('/marketing/?'+q.toString(),'_blank');
 }
 window.addEventListener('message',ev=>{
@@ -1071,12 +1093,13 @@ function smsCount(t){ const n=(t||'').length; const seg=n===0?0:(n<=160?1:Math.c
    a side-by-side A/B split editor. Kept as its own function so the branch doesn't have
    to live inside the giant per-step template literal. */
 function stepBodyBlock(i, step, sms, design, c){
-  const hasAB = !sms && !design && Array.isArray(step.variants) && step.variants.length>0;
-  if(hasAB) return renderVariantsBlock(i, step);
+  const hasAB = Array.isArray(step.variants) && step.variants.length>0;
+  if(hasAB) return renderVariantsBlock(i, step, sms, design, c);
+  const abBtn = `<button type="button" class="abtest-toggle" title="Split this step into an A/B test" data-abadd="${i}">A/B test</button>`;
   return `
-        ${sms?'':`<div class="field"><label>Subject line${(!sms&&!design)?` <button type="button" class="abtest-toggle" title="Split this step into an A/B test" data-abadd="${i}">A/B test</button>`:''}</label><input type="text" data-i="${i}" data-f="subject" value="${esc(step.subject||'')}"></div>`}
+        ${sms?'':`<div class="field"><label>Subject line ${design?'':abBtn}</label><input type="text" data-i="${i}" data-f="subject" value="${esc(step.subject||'')}"></div>`}
         ${design?`
-        <div class="field" style="margin-bottom:6px"><label>Design</label>
+        <div class="field" style="margin-bottom:6px"><label>Design ${abBtn}</label>
           <div class="designpick" data-i="${i}">
             <div class="dp-body">
               <strong>${step.designId?esc(designName(step.designId)):'No design chosen yet'}</strong>
@@ -1089,26 +1112,50 @@ function stepBodyBlock(i, step, sms, design, c){
           </div>
           ${!c.sendAs?`<div class="hint">This is a marketing email. If you'd rather it didn't go out from each rep's own mailbox, put a shared address in \u201cSend everything from\u201d above \u2014 entirely optional.</div>`:''}
         </div>`:`
-        <div class="field" style="margin-bottom:6px"><label>${sms?'Text message':'Email body'}</label><textarea data-i="${i}" data-f="body" ${sms?'data-sms="1" style="min-height:96px"':''}>${esc(step.body||'')}</textarea>
+        <div class="field" style="margin-bottom:6px"><label>${sms?'Text message':'Email body'} ${sms?abBtn:''}</label><textarea data-i="${i}" data-f="body" ${sms?'data-sms="1" style="min-height:96px"':''}>${esc(step.body||'')}</textarea>
           <div class="tokens">${toksFor(sms).map(([t,d])=>`<span class="token" title="${d}" data-tok="${t}">${t}</span>`).join('')}</div>
         </div>`}`;
 }
-function renderVariantsBlock(i, step){
+function renderVariantsBlock(i, step, sms, design, c){
   const vs=step.variants;
-  return `
+  const removeBtn=`<button type="button" class="abtest-remove" title="Remove A/B testing (keeps variant A)" data-abrm="${i}">Remove A/B test</button>`;
+  if(design){
+    return `
         <div class="field" style="margin-bottom:6px">
-          <label>A/B test \u2014 two subject/body variants, split evenly by contact
-            <button type="button" class="abtest-remove" title="Remove A/B testing (keeps variant A)" data-abrm="${i}">Remove A/B test</button>
-          </label>
+          <label>A/B test \u2014 two designs, split evenly by contact ${removeBtn}</label>
           <div class="abgrid">
             ${vs.map((v,vi)=>`
               <div class="abcol">
                 <div class="abcol-label">Variant ${esc(v.id||String.fromCharCode(65+vi))}</div>
                 <input type="text" placeholder="Subject" data-i="${i}" data-v="${vi}" data-f="vsubject" value="${esc(v.subject||'')}">
-                <textarea placeholder="Body" data-i="${i}" data-v="${vi}" data-f="vbody" style="min-height:140px">${esc(v.body||'')}</textarea>
+                <div class="designpick" style="margin-top:4px">
+                  <div class="dp-body">
+                    <strong>${v.designId?esc(designName(v.designId)):'No design chosen yet'}</strong>
+                    <span>${v.designId?'Drag-and-drop marketing email':'Build one, or pick an existing design'}</span>
+                  </div>
+                  <div class="dp-actions">
+                    <button class="btn btn-ghost" data-pickdesignv="${i}.${vi}">Choose\u2026</button>
+                    <button class="btn btn-brass" data-opendesignv="${i}.${vi}">${v.designId?'Edit design':'Open builder'}</button>
+                  </div>
+                </div>
               </div>`).join('')}
           </div>
-          <div class="tokens">${toksFor(false).map(([t,d])=>`<span class="token" title="${d}" data-tok="${t}">${t}</span>`).join('')}</div>
+          ${!c.sendAs?`<div class="hint">These are marketing emails. If you'd rather they didn't go out from each rep's own mailbox, put a shared address in \u201cSend everything from\u201d above \u2014 entirely optional.</div>`:''}
+        </div>`;
+  }
+  return `
+        <div class="field" style="margin-bottom:6px">
+          <label>A/B test \u2014 two ${sms?'text message':'subject/body'} variants, split evenly by contact ${removeBtn}</label>
+          <div class="abgrid">
+            ${vs.map((v,vi)=>`
+              <div class="abcol">
+                <div class="abcol-label">Variant ${esc(v.id||String.fromCharCode(65+vi))}</div>
+                ${sms?'':`<input type="text" placeholder="Subject" data-i="${i}" data-v="${vi}" data-f="vsubject" value="${esc(v.subject||'')}">`}
+                <textarea placeholder="${sms?'Text message':'Body'}" data-i="${i}" data-v="${vi}" data-f="vbody" ${sms?'data-sms="1"':''} style="min-height:${sms?'96px':'140px'}">${esc(v.body||'')}</textarea>
+                ${sms?`<div class="smsmeta"><span class="count" data-vcountout="${i}.${vi}">${smsCount(v.body)}</span></div>`:''}
+              </div>`).join('')}
+          </div>
+          ${sms?'':`<div class="tokens">${toksFor(false).map(([t,d])=>`<span class="token" title="${d}" data-tok="${t}">${t}</span>`).join('')}</div>`}
         </div>`;
 }
 function renderSteps(){
@@ -1171,15 +1218,21 @@ function renderSteps(){
   leash.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{ campaigns[activeKey].steps.splice(+b.dataset.rm,1); renderSteps(); scheduleDraft(); });
   leash.querySelectorAll('[data-abadd]').forEach(b=>b.onclick=()=>{
     const i=+b.dataset.abadd, st=campaigns[activeKey].steps[i];
-    st.variants=[{id:'A',subject:st.subject||'',body:st.body||'',weight:1},{id:'B',subject:st.subject||'',body:st.body||'',weight:1}];
+    st.variants = st.format==='design'
+      ? [{id:'A',subject:st.subject||'',designId:st.designId||'',weight:1},{id:'B',subject:st.subject||'',designId:'',weight:1}]
+      : [{id:'A',subject:st.subject||'',body:st.body||'',weight:1},{id:'B',subject:st.subject||'',body:st.body||'',weight:1}];
     renderSteps(); scheduleDraft();
   });
   leash.querySelectorAll('[data-abrm]').forEach(b=>b.onclick=()=>{
     const i=+b.dataset.abrm, st=campaigns[activeKey].steps[i], v=st.variants||[];
-    st.subject=v[0]?.subject||st.subject||''; st.body=v[0]?.body||st.body||'';
+    st.subject=v[0]?.subject||st.subject||'';
+    if(st.format==='design') st.designId=v[0]?.designId||st.designId||'';
+    else st.body=v[0]?.body||st.body||'';
     delete st.variants;
     renderSteps(); scheduleDraft();
   });
+  leash.querySelectorAll('[data-pickdesignv]').forEach(b=>b.onclick=()=>{ const [si,vi]=b.dataset.pickdesignv.split('.').map(Number); openDesignModal({step:si,variant:vi}); });
+  leash.querySelectorAll('[data-opendesignv]').forEach(b=>b.onclick=()=>{ const [si,vi]=b.dataset.opendesignv.split('.').map(Number); designTarget={step:si,variant:vi}; openBuilder(designTarget); });
   leash.querySelectorAll('[data-tok]').forEach(t=>t.onclick=()=>insertToken(t.dataset.tok));
   leash.querySelectorAll('input[type=text],textarea,input[type=number]').forEach(el=>{ el.addEventListener('input',syncField); el.addEventListener('focus',e=>{ if(e.target.dataset.f&&e.target.tagName!=='BUTTON')lastFocusedText=e.target.dataset.f==='delay'?lastFocusedText:e.target; }); });
   leash.querySelectorAll('textarea:not([data-sms])').forEach(ta=>{}); // email enhance below
@@ -1187,7 +1240,7 @@ function renderSteps(){
   requestAnimationFrame(()=>leash.querySelectorAll('.seg').forEach(syncGlider));
 }
 function syncGlider(seg){ const on=seg.querySelector('button.on'); const g=seg.querySelector('.glider'); if(on&&g){ g.style.left=on.offsetLeft+'px'; g.style.width=on.offsetWidth+'px'; } }
-function syncField(e){ const {i,f,v}=e.target.dataset; const st=campaigns[activeKey].steps[+i]; if(f==='subject')st.subject=e.target.value; if(f==='body'){ st.body=e.target.value; const ct=$('leash').querySelector(`[data-count="${i}"]`); if(ct)ct.textContent=smsCount(e.target.value); } if(f==='vsubject'&&st.variants){ st.variants[+v].subject=e.target.value; } if(f==='vbody'&&st.variants){ st.variants[+v].body=e.target.value; } if(f==='delay') {
+function syncField(e){ const {i,f,v}=e.target.dataset; const st=campaigns[activeKey].steps[+i]; if(f==='subject')st.subject=e.target.value; if(f==='body'){ st.body=e.target.value; const ct=$('leash').querySelector(`[data-count="${i}"]`); if(ct)ct.textContent=smsCount(e.target.value); } if(f==='vsubject'&&st.variants){ st.variants[+v].subject=e.target.value; } if(f==='vbody'&&st.variants){ st.variants[+v].body=e.target.value; const ct=$('leash').querySelector(`[data-vcountout="${i}.${v}"]`); if(ct)ct.textContent=smsCount(e.target.value); } if(f==='delay') {
   const val = parseInt(e.target.value);
   st.delayDaysAfter = isNaN(val) ? 0 : Math.max(0, val);
 } }
