@@ -36,13 +36,12 @@ export default async function handler(req, res) {
         campaignTimeToOpen(key)
       ]);
 
-      const steps = (all[key].steps || []).map((s, i) => {
-        const m = funnel.steps[String(i + 1)] || {};
+      const stepMetrics = (m, i, subject, channel = 'email') => {
         const sent = m.sent || 0;
         return {
           step: i + 1,
-          channel: s.channel === 'sms' ? 'sms' : 'email',
-          subject: s.subject || '',
+          channel,
+          subject,
           sent,
           opened: m.opened || 0,
           openHits: m.open_hit || 0,
@@ -53,7 +52,19 @@ export default async function handler(req, res) {
           clickRate: sent ? +(100 * (m.clicked || 0) / sent).toFixed(1) : null,
           replyRate: sent ? +(100 * (m.replied || 0) / sent).toFixed(1) : null
         };
-      });
+      };
+
+      // Fixed-step sequences: walk the campaign's own step list. Checklist campaigns
+      // have no fixed step list (reminder count is dynamic per contact), so instead
+      // walk whatever step numbers actually have recorded activity in Redis — that's
+      // the only place a checklist's real step count lives.
+      const steps = (all[key].steps || []).length
+        ? all[key].steps.map((s, i) => stepMetrics(funnel.steps[String(i + 1)] || {}, i, s.subject || '', s.channel === 'sms' ? 'sms' : 'email'))
+        : Object.keys(funnel.steps)
+            .map(Number)
+            .filter(n => n > 0)
+            .sort((a, b) => a - b)
+            .map(n => stepMetrics(funnel.steps[String(n)] || {}, n - 1, n === 1 ? (all[key].firstEmail?.subject || 'First email') : `Reminder ${n - 1}`));
 
       out[key] = {
         label: all[key].label || key,
