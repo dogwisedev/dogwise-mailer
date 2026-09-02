@@ -492,6 +492,30 @@ table.tbl tr:hover td{background:#fafbfd}
 .drow .dr-score.warn{background:var(--brass-wash);color:var(--brass-deep)}
 .drow .dr-score.bad{background:#fdeceb;color:var(--err)}
 .seg.is-design .glider{background:linear-gradient(150deg,var(--brass-hi),var(--brass))}
+/* A/B testing split editor */
+.abtest-add,.abtest-toggle,.abtest-remove{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;
+  border:1.5px solid var(--line);background:#fff;color:var(--slate);cursor:pointer;margin-left:8px;vertical-align:middle}
+.abtest-add:hover,.abtest-toggle:hover{border-color:var(--brass);color:var(--brass-deep)}
+.abtest-remove{border-color:var(--err);color:var(--err)}
+.abtest-remove:hover{background:#fdeceb}
+.abgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px}
+.abcol{display:flex;flex-direction:column;gap:6px;background:#fbfaf7;border:1.5px solid var(--line);border-radius:var(--r-sm);padding:10px}
+.abcol-label{font-size:11px;font-weight:700;color:var(--brass-deep);letter-spacing:.02em}
+.abcol input[type=text]{width:100%}
+.abcol textarea{width:100%;resize:vertical}
+@media (max-width:760px){.abgrid{grid-template-columns:1fr}}
+/* A/B report indicator */
+.abstat{display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;font-size:12px}
+.abstat .abchip{display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;background:#fbfaf7;border:1.5px solid var(--line)}
+.abstat .abchip b{font-family:'JetBrains Mono';color:var(--ink)}
+.abstat .abchip .abpct{font-weight:700;color:var(--sent)}
+.abstat .abchip.leader{border-color:var(--sent);background:#e6f4ea}
+/* Send-time optimization panel */
+.optpanel{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);display:flex;flex-direction:column;gap:8px}
+.optpanel .opt-fields{display:none;gap:14px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--slate)}
+.optpanel .opt-fields.on{display:flex}
+.optpanel .opt-fields input[type=number]{width:64px;border:1.5px solid var(--line);border-radius:6px;padding:4px 6px;font-size:12.5px}
+.optpanel .opt-explain{font-size:11.5px;color:var(--mute);line-height:1.5}
 </style>
 </head>
 <body>
@@ -625,6 +649,13 @@ table.tbl tr:hover td{background:#fafbfd}
           </div>
           <label class="switch"><input type="checkbox" id="stopCalled"><span class="track"></span><span class="sl">Stop if a rep logs a call</span></label>
           <span class="folder-chip" id="folderChip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-7.9a1 1 0 0 1-.8-.4l-1.1-1.4a1 1 0 0 0-.8-.4H4a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1Z"/></svg><span id="folderChipName">Unfiled</span></span>
+        </div>
+        <div class="optpanel" id="optPanel">
+          <label class="switch"><input type="checkbox" id="optSend"><span class="track"></span><span class="sl">Optimize send time</span></label>
+          <div class="opt-fields" id="optFields">
+            After <input type="number" min="1" id="optAfter"> opens, will optimise, then reconfigure every <input type="number" min="1" id="optEvery"> opens.
+          </div>
+          <div class="opt-explain" id="optExplain" style="display:none">Below that, steps send on their normal delay. Once there's enough open data, later steps in this sequence shift to whichever hour of day this campaign's leads have actually been opening at — recalculated fresh each time, so it keeps adjusting as more data comes in.</div>
         </div>
       </div>
 
@@ -1003,6 +1034,12 @@ function renderMeta(){
   setTimeout(drawTrigs,0);
   $('winStart').value=String(w.startMins); $('winEnd').value=String(w.endMins);
   $('stopCalled').checked=!!c.stopIfCalled;
+  const opt=c.sendOptimization||{};
+  $('optSend').checked=!!opt.enabled;
+  $('optAfter').value=opt.afterOpens||20;
+  $('optEvery').value=opt.reoptimizeEvery||20;
+  $('optFields').classList.toggle('on',!!opt.enabled);
+  $('optExplain').style.display=opt.enabled?'block':'none';
   renderFolderChip();
 }
 function renderFolderChip(){ const c=campaigns[activeKey]; const f=folders.find(x=>x.id===c.folder); $('folderChipName').textContent=f?f.name:'Unfiled'; }
@@ -1013,6 +1050,13 @@ $('winEnd').onchange=()=>{ const c=campaigns[activeKey]; const w=winMins(c); w.e
   if(w.endMins<=w.startMins){ w.startMins=Math.max(0,w.endMins-15); $('winStart').value=String(w.startMins); }
   c.window={startMins:w.startMins,endMins:w.endMins}; scheduleDraft(); };
 $('stopCalled').onchange=()=>{ campaigns[activeKey].stopIfCalled=$('stopCalled').checked; scheduleDraft(); };
+function syncOpt(){ const c=campaigns[activeKey];
+  c.sendOptimization={ enabled:$('optSend').checked, afterOpens:Math.max(1,parseInt($('optAfter').value)||20), reoptimizeEvery:Math.max(1,parseInt($('optEvery').value)||20) };
+  $('optFields').classList.toggle('on',c.sendOptimization.enabled);
+  $('optExplain').style.display=c.sendOptimization.enabled?'block':'none';
+  scheduleDraft();
+}
+$('optSend').onchange=syncOpt; $('optAfter').onchange=syncOpt; $('optEvery').onchange=syncOpt;
 $('folderChip').onclick=e=>{ openItemMenu({preventDefault(){},clientX:e.clientX,clientY:e.clientY},activeKey); };
 
 /* ── STEPS editor ──────────────────────────────────────────────────── */
@@ -1023,10 +1067,55 @@ function customToks(){ return (appSettings.placeholders||[]).filter(p=>p.token).
 function toksFor(sms){ return [...(sms?TOK_SMS:TOK_EMAIL),...customToks()]; }
 function smsCount(t){ const n=(t||'').length; const seg=n===0?0:(n<=160?1:Math.ceil(n/153)); return `${n} char${n===1?'':'s'} · ${seg} SMS`; }
 
+/* Body/subject block for one step: normal single editor, or — if step.variants is set —
+   a side-by-side A/B split editor. Kept as its own function so the branch doesn't have
+   to live inside the giant per-step template literal. */
+function stepBodyBlock(i, step, sms, design, c){
+  const hasAB = !sms && !design && Array.isArray(step.variants) && step.variants.length>0;
+  if(hasAB) return renderVariantsBlock(i, step);
+  return `
+        ${sms?'':`<div class="field"><label>Subject line${(!sms&&!design)?` <button type="button" class="abtest-toggle" title="Split this step into an A/B test" data-abadd="${i}">A/B test</button>`:''}</label><input type="text" data-i="${i}" data-f="subject" value="${esc(step.subject||'')}"></div>`}
+        ${design?`
+        <div class="field" style="margin-bottom:6px"><label>Design</label>
+          <div class="designpick" data-i="${i}">
+            <div class="dp-body">
+              <strong>${step.designId?esc(designName(step.designId)):'No design chosen yet'}</strong>
+              <span>${step.designId?'Drag-and-drop marketing email':'Build one, or pick an existing design'}</span>
+            </div>
+            <div class="dp-actions">
+              <button class="btn btn-ghost" data-pickdesign="${i}">Choose\u2026</button>
+              <button class="btn btn-brass" data-opendesign="${i}">${step.designId?'Edit design':'Open builder'}</button>
+            </div>
+          </div>
+          ${!c.sendAs?`<div class="hint">This is a marketing email. If you'd rather it didn't go out from each rep's own mailbox, put a shared address in \u201cSend everything from\u201d above \u2014 entirely optional.</div>`:''}
+        </div>`:`
+        <div class="field" style="margin-bottom:6px"><label>${sms?'Text message':'Email body'}</label><textarea data-i="${i}" data-f="body" ${sms?'data-sms="1" style="min-height:96px"':''}>${esc(step.body||'')}</textarea>
+          <div class="tokens">${toksFor(sms).map(([t,d])=>`<span class="token" title="${d}" data-tok="${t}">${t}</span>`).join('')}</div>
+        </div>`}`;
+}
+function renderVariantsBlock(i, step){
+  const vs=step.variants;
+  return `
+        <div class="field" style="margin-bottom:6px">
+          <label>A/B test \u2014 two subject/body variants, split evenly by contact
+            <button type="button" class="abtest-remove" title="Remove A/B testing (keeps variant A)" data-abrm="${i}">Remove A/B test</button>
+          </label>
+          <div class="abgrid">
+            ${vs.map((v,vi)=>`
+              <div class="abcol">
+                <div class="abcol-label">Variant ${esc(v.id||String.fromCharCode(65+vi))}</div>
+                <input type="text" placeholder="Subject" data-i="${i}" data-v="${vi}" data-f="vsubject" value="${esc(v.subject||'')}">
+                <textarea placeholder="Body" data-i="${i}" data-v="${vi}" data-f="vbody" style="min-height:140px">${esc(v.body||'')}</textarea>
+              </div>`).join('')}
+          </div>
+          <div class="tokens">${toksFor(false).map(([t,d])=>`<span class="token" title="${d}" data-tok="${t}">${t}</span>`).join('')}</div>
+        </div>`;
+}
 function renderSteps(){
   const c=campaigns[activeKey], isCl=c.type==='checklist';
   $('checklistEd').style.display=isCl?'block':'none';
   $('trigCard').style.display=isCl?'none':'block';   // step numbers are meaningless on a checklist
+  $('optPanel').style.display=isCl?'none':'flex';     // optimization applies to step delays, not checklist reminders
   $('leash').style.display=isCl?'none':'block';
   $('addRow').style.display=isCl?'none':'flex';
   if(isCl){ renderChecklist(); $('leash').innerHTML=''; return; }
@@ -1053,24 +1142,7 @@ function renderSteps(){
             ${c.steps.length>1?`<button class="ibtn" title="Remove" data-rm="${i}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>`:''}
           </div>
         </div>
-        ${sms?'':`<div class="field"><label>Subject line</label><input type="text" data-i="${i}" data-f="subject" value="${esc(step.subject||'')}"></div>`}
-        ${design?`
-        <div class="field" style="margin-bottom:6px"><label>Design</label>
-          <div class="designpick" data-i="${i}">
-            <div class="dp-body">
-              <strong>${step.designId?esc(designName(step.designId)):'No design chosen yet'}</strong>
-              <span>${step.designId?'Drag-and-drop marketing email':'Build one, or pick an existing design'}</span>
-            </div>
-            <div class="dp-actions">
-              <button class="btn btn-ghost" data-pickdesign="${i}">Choose\u2026</button>
-              <button class="btn btn-brass" data-opendesign="${i}">${step.designId?'Edit design':'Open builder'}</button>
-            </div>
-          </div>
-          ${!c.sendAs?`<div class="hint">This is a marketing email. If you'd rather it didn't go out from each rep's own mailbox, put a shared address in \u201cSend everything from\u201d above \u2014 entirely optional.</div>`:''}
-        </div>`:`
-        <div class="field" style="margin-bottom:6px"><label>${sms?'Text message':'Email body'}</label><textarea data-i="${i}" data-f="body" ${sms?'data-sms="1" style="min-height:96px"':''}>${esc(step.body||'')}</textarea>
-          <div class="tokens">${toksFor(sms).map(([t,d])=>`<span class="token" title="${d}" data-tok="${t}">${t}</span>`).join('')}</div>
-        </div>`}
+        ${stepBodyBlock(i, step, sms, design, c)}
         ${sms?`<div class="smsmeta"><span class="note">Sends from the deal owner\u2019s number for the lead\u2019s region.</span><span class="count" data-count="${i}">${smsCount(step.body)}</span></div>`:''}
         <div class="daypills"><span class="dl">Sends on</span>
           <button class="pill-toggle ${step.days.weekday?'on':''}" data-day="weekday" data-i="${i}"><span class="dot"></span>Weekdays</button>
@@ -1087,8 +1159,8 @@ function renderSteps(){
   // wire
   leash.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{
     const i=+b.closest('.seg').dataset.i, st=campaigns[activeKey].steps[i], ch=b.dataset.ch;
-    if(ch==='marketing'){ st.channel='email'; st.format='design'; }
-    else { st.channel=ch; delete st.format; delete st.designId; }
+    if(ch==='marketing'){ st.channel='email'; st.format='design'; delete st.variants; }
+    else { st.channel=ch; delete st.format; delete st.designId; if(ch==='sms')delete st.variants; }
     renderSteps(); scheduleDraft();
   });
   leash.querySelectorAll('[data-opendesign]').forEach(b=>b.onclick=()=>{ designTarget=+b.dataset.opendesign; openBuilder(designTarget); });
@@ -1097,6 +1169,17 @@ function renderSteps(){
   leash.querySelectorAll('[data-up]').forEach(b=>b.onclick=()=>moveStep(+b.dataset.up,-1));
   leash.querySelectorAll('[data-down]').forEach(b=>b.onclick=()=>moveStep(+b.dataset.down,1));
   leash.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{ campaigns[activeKey].steps.splice(+b.dataset.rm,1); renderSteps(); scheduleDraft(); });
+  leash.querySelectorAll('[data-abadd]').forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.abadd, st=campaigns[activeKey].steps[i];
+    st.variants=[{id:'A',subject:st.subject||'',body:st.body||'',weight:1},{id:'B',subject:st.subject||'',body:st.body||'',weight:1}];
+    renderSteps(); scheduleDraft();
+  });
+  leash.querySelectorAll('[data-abrm]').forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.abrm, st=campaigns[activeKey].steps[i], v=st.variants||[];
+    st.subject=v[0]?.subject||st.subject||''; st.body=v[0]?.body||st.body||'';
+    delete st.variants;
+    renderSteps(); scheduleDraft();
+  });
   leash.querySelectorAll('[data-tok]').forEach(t=>t.onclick=()=>insertToken(t.dataset.tok));
   leash.querySelectorAll('input[type=text],textarea,input[type=number]').forEach(el=>{ el.addEventListener('input',syncField); el.addEventListener('focus',e=>{ if(e.target.dataset.f&&e.target.tagName!=='BUTTON')lastFocusedText=e.target.dataset.f==='delay'?lastFocusedText:e.target; }); });
   leash.querySelectorAll('textarea:not([data-sms])').forEach(ta=>{}); // email enhance below
@@ -1104,7 +1187,7 @@ function renderSteps(){
   requestAnimationFrame(()=>leash.querySelectorAll('.seg').forEach(syncGlider));
 }
 function syncGlider(seg){ const on=seg.querySelector('button.on'); const g=seg.querySelector('.glider'); if(on&&g){ g.style.left=on.offsetLeft+'px'; g.style.width=on.offsetWidth+'px'; } }
-function syncField(e){ const {i,f}=e.target.dataset; const st=campaigns[activeKey].steps[+i]; if(f==='subject')st.subject=e.target.value; if(f==='body'){ st.body=e.target.value; const ct=$('leash').querySelector(`[data-count="${i}"]`); if(ct)ct.textContent=smsCount(e.target.value); } if(f==='delay') {
+function syncField(e){ const {i,f,v}=e.target.dataset; const st=campaigns[activeKey].steps[+i]; if(f==='subject')st.subject=e.target.value; if(f==='body'){ st.body=e.target.value; const ct=$('leash').querySelector(`[data-count="${i}"]`); if(ct)ct.textContent=smsCount(e.target.value); } if(f==='vsubject'&&st.variants){ st.variants[+v].subject=e.target.value; } if(f==='vbody'&&st.variants){ st.variants[+v].body=e.target.value; } if(f==='delay') {
   const val = parseInt(e.target.value);
   st.delayDaysAfter = isNaN(val) ? 0 : Math.max(0, val);
 } }
@@ -1595,6 +1678,20 @@ function svgTto(tto){
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">${g}</svg>`;
 }
 
+/* Small indicator chips for A/B steps: "A  200 opens  24%" per variant, leading
+   variant (by open rate, with sends) highlighted. Returns '' when nothing to show. */
+function abSummary(steps){
+  const abSteps=(steps||[]).filter(s=>Array.isArray(s.variants)&&s.variants.length);
+  if(!abSteps.length) return '';
+  return abSteps.map(s=>{
+    const withRate=s.variants.filter(v=>v.sent>0);
+    const leaderId=withRate.length?withRate.reduce((a,b)=>(b.openRate||0)>(a.openRate||0)?b:a).id:null;
+    const chips=s.variants.map(v=>
+      `<span class="abchip${v.id===leaderId?' leader':''}"><b>${esc(v.id)}</b>${v.sent||0} sent \u00b7 ${v.opened||0} opens${v.openRate!=null?` \u00b7 <span class="abpct">${v.openRate}%</span>`:''}</span>`
+    ).join('');
+    return `<div style="margin-bottom:10px"><div class="rpsub" style="margin-bottom:4px">Step ${s.step}${s.subject?` \u2014 ${esc(s.subject.slice(0,60))}`:''}</div><div class="abstat">${chips}</div></div>`;
+  }).join('');
+}
 function drawReports(){
   const keys=Object.keys(rpData.campaigns||{});
   if(!keys.length){ $('rpBody').innerHTML='<div class="rpempty">Nothing recorded yet. Charts fill in as sends, opens and clicks happen.</div>'; return; }
@@ -1615,6 +1712,7 @@ function drawReports(){
     </div>
     <div class="rpcols">
       <div class="rpcard"><h4>Step funnel</h4><div class="rpsub">Faint bar is sends. Solid bars are opens, clicks, replies.</div>${svgFunnel(c.steps||[])}</div>
+      ${abSummary(c.steps)?`<div class="rpcard"><h4>A/B test results</h4><div class="rpsub">Live split by variant \u2014 leading variant highlighted</div>${abSummary(c.steps)}</div>`:''}
       <div class="rpcard"><h4>Which links get clicked</h4><div class="rpsub">Ranked by total clicks across all steps</div>${svgLinkBars(c.links||[])}</div>
       <div class="rpcard"><h4>Sent, opened, clicked</h4><div class="rpsub">${days.length} days \u00b7 green sent, amber opened, navy clicked</div>${svgSparkline(c.byDay||{},days)}</div>
       <div class="rpcard"><h4>Time from send to first open</h4><div class="rpsub">Useful for choosing step delays</div>${svgTto(c.timeToOpen||[])}</div>
