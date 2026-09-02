@@ -54,12 +54,32 @@ export default async function handler(req, res) {
         };
       };
 
+      // A/B steps record their funnel data under "<step>.<variantId>" keys (see
+      // lib/process.js's pickVariant), never under the bare step number, so build the
+      // per-variant breakdown from those keys and sum them for the step-level total.
+      const variantMetrics = (i, variants) => {
+        const perVariant = variants.map(v => {
+          const m = stepMetrics(funnel.steps[`${i + 1}.${v.id}`] || {}, i, v.subject || '', 'email');
+          return { id: v.id, ...m };
+        });
+        const summed = {};
+        for (const pv of perVariant) {
+          for (const k of ['sent', 'opened', 'openHits', 'clicked', 'clickHits', 'replied']) {
+            summed[k] = (summed[k] || 0) + pv[k];
+          }
+        }
+        const total = stepMetrics(summed, i, variants.map(v => v.subject).join(' / '), 'email');
+        return { ...total, variants: perVariant };
+      };
+
       // Fixed-step sequences: walk the campaign's own step list. Checklist campaigns
       // have no fixed step list (reminder count is dynamic per contact), so instead
       // walk whatever step numbers actually have recorded activity in Redis — that's
       // the only place a checklist's real step count lives.
       const steps = (all[key].steps || []).length
-        ? all[key].steps.map((s, i) => stepMetrics(funnel.steps[String(i + 1)] || {}, i, s.subject || '', s.channel === 'sms' ? 'sms' : 'email'))
+        ? all[key].steps.map((s, i) => Array.isArray(s.variants) && s.variants.length
+            ? variantMetrics(i, s.variants)
+            : stepMetrics(funnel.steps[String(i + 1)] || {}, i, s.subject || '', s.channel === 'sms' ? 'sms' : 'email'))
         : Object.keys(funnel.steps)
             .map(Number)
             .filter(n => n > 0)
