@@ -21,6 +21,8 @@ import { dayRange } from '../lib/metrics.js';
 import { getEvents, getAllTimeStats } from '../lib/activity.js';
 import { appBaseUrl } from '../lib/util.js';
 import { listDesigns, getDesign, saveDesign, deleteDesign, designUsage, slugifyDesignId } from '../lib/designs.js';
+import { getPlaceholders } from '../lib/settings.js';
+import { tokenCatalogue } from '../lib/tokens.js';
 
 function textResult(obj) {
   return { content: [{ type: 'text', text: JSON.stringify(obj, null, 2) }] };
@@ -55,7 +57,7 @@ function buildServer() {
   });
 
   server.registerTool('save_sequence', {
-    description: 'Create a new sequence, or overwrite an existing one entirely, by key. Pass the FULL campaign object (label, steps, etc — same shape get_sequence returns), not a partial patch. For small edits to one existing sequence, prefer update_sequence_step instead, which is safer. Steps: [{channel:"email"|"sms", subject, body, delayDaysAfter, days:{weekday,weekend}}] — or, for A/B testing, replace subject/body on a step with variants:[{id:"A",subject,body},{id:"B",subject,body}] (email or SMS steps only, not marketing-design steps).',
+    description: 'Create a new sequence, or overwrite an existing one entirely, by key. Pass the FULL campaign object (label, steps, etc — same shape get_sequence returns), not a partial patch. For small edits to one existing sequence, prefer update_sequence_step instead, which is safer. Steps: [{channel:"email"|"sms", subject, body, delayDaysAfter, days:{weekday,weekend}}] — or, for A/B testing, replace subject/body on a step with variants:[{id:"A",subject,body},{id:"B",subject,body}] (email or SMS steps only, not marketing-design steps). `body` here is plain text + light markdown ([[button:Text|url]], ![alt](url), [text](url), **bold**) — it gets HTML-escaped, so a full HTML document pasted into `body` sends as literal escaped markup, not a rendered email. For an HTML-designed marketing email, use create_marketing_design + attach_marketing_design instead — that\\u2019s a different step shape (format:"design", designId), not a body string. Call list_placeholders first so subject/body only use tokens that actually exist.',
     inputSchema: {
       key: z.string().regex(/^[a-z0-9_]+$/).describe('Lowercase letters, numbers, underscores only'),
       campaign: z.record(z.any()).describe('The full campaign object to save')
@@ -73,7 +75,7 @@ function buildServer() {
   });
 
   server.registerTool('update_sequence_step', {
-    description: 'Edit one field on one step of an existing sequence (subject, body, delayDaysAfter, or channel) without having to resend the whole sequence. Use get_sequence first to see current step indices (0-based) and content.',
+    description: 'Edit one field on one step of an existing sequence (subject, body, delayDaysAfter, or channel) without having to resend the whole sequence. Use get_sequence first to see current step indices (0-based) and content. `body` is plain text + light markdown only \\u2014 it gets HTML-escaped before sending, so pasting a full HTML document here sends as literal escaped markup, not a rendered email. If the step\\u2019s current format is "design" (get_sequence shows designId), don\\u2019t set body at all \\u2014 use update_marketing_design on its designId instead. For a brand-new HTML marketing email, use create_marketing_design + attach_marketing_design. Call list_placeholders first so subject/body only use tokens that actually exist.',
     inputSchema: {
       key: z.string(),
       stepIndex: z.number().int().min(0).describe('0-based index into the steps array'),
@@ -147,6 +149,12 @@ function buildServer() {
     return textResult({ events, allTime });
   });
 
+  server.registerTool('list_placeholders', {
+    description: 'List every {{token}} that actually works in an email, SMS, or marketing design \u2014 built-in ones (firstname, sender_booking_link, etc.) plus every custom token defined in Settings (e.g. {{dog_name}}), with which HubSpot object/property it maps to and its fallback text. Call this BEFORE writing or editing any email/SMS copy so you only use tokens that exist \u2014 an unlisted token isn\\u2019t an error, it just silently renders as blank or its fallback at send time, so guessing produces broken-looking copy with no warning.'
+  }, async () => {
+    return textResult(tokenCatalogue(await getPlaceholders()));
+  });
+
   // ── Marketing designs ──────────────────────────────────────────────────
   // These are the drag-and-drop "marketing email" steps (format:'design'). A design
   // can come from the visual builder OR from raw HTML (e.g. written in Claude and
@@ -173,7 +181,7 @@ function buildServer() {
     description: 'Create a new marketing email design from raw HTML \u2014 e.g. HTML written in Claude, pasted straight in. No visual builder involved. Produces a design usable in a sequence step exactly like one made in the drag-and-drop builder (attach it with attach_marketing_design). Plain-text fallback is auto-derived from the HTML if you don\u2019t supply one. Click tracking, the open pixel, and the unsubscribe footer are added automatically at send time \u2014 don\u2019t include your own.',
     inputSchema: {
       name: z.string().describe('Human-readable name shown in the dashboard'),
-      html: z.string().describe('Full HTML for the email. Personalization tokens like {{dog_name}} work the same as in any other step.'),
+      html: z.string().describe('Full HTML for the email. Personalization tokens work the same as in any other step \u2014 call list_placeholders first to see which ones actually exist (built-ins plus any custom ones defined in Settings) rather than guessing a name like {{dog_name}}.'),
       text: z.string().optional().describe('Plain-text fallback. Auto-generated from the HTML if omitted.'),
       id: z.string().regex(/^[a-z0-9_-]{3,60}$/).optional().describe('Lowercase id, 3\u201360 chars (letters, numbers, _ or -). Auto-generated from name if omitted.')
     }
