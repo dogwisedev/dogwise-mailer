@@ -1,6 +1,7 @@
 // api/campaigns.js — dashboard API. GET list (+ folders) / POST upsert one / DELETE one.
 import { getCampaigns, saveCampaigns, storeConfigured, getFolders } from '../lib/store.js';
 import { validateTriggers } from '../lib/triggers.js';
+import { looksLikeFullHtml } from '../lib/util.js';
 
 function authorized(req) {
   const auth = req.headers['authorization'] || '';
@@ -59,10 +60,16 @@ export function validCampaign(c) {
         const label = v.id || String.fromCharCode(65 + vi);
         if (!v.body?.trim()) return `Step ${n}, variant ${label} needs ${channel === 'sms' ? 'a message' : 'a body'}`;
         if (channel === 'email' && !v.subject?.trim()) return `Step ${n}, variant ${label} needs a subject`;
+        if (channel === 'email' && looksLikeFullHtml(v.body)) {
+          return `Step ${n}, variant ${label}: this looks like a full HTML email, not plain text \u2014 it'll be escaped and sent as literal markup. Create a marketing design (create_marketing_design) and set this variant's designId instead of body.`;
+        }
       }
     } else {
       if (!s.body?.trim()) return `Step ${n} needs ${channel === 'sms' ? 'a message' : 'a body'}`;
       if (channel === 'email' && !s.subject?.trim()) return `Email step ${n} needs a subject`;
+      if (channel === 'email' && looksLikeFullHtml(s.body)) {
+        return `Step ${n} body looks like a full HTML email, not plain text \u2014 a plain step HTML-escapes its body, so this would send as literal markup (e.g. "&lt;table&gt;") instead of rendering. Use create_marketing_design + attach_marketing_design to make this a marketing-email step instead.`;
+      }
     }
     if (s.days && !s.days.weekday && !s.days.weekend) return `Step ${n}: pick at least one of weekdays / weekends`;
     
