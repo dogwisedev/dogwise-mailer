@@ -20,6 +20,7 @@ import { buildCampaignAnalytics } from '../lib/analyticsCore.js';
 import { dayRange } from '../lib/metrics.js';
 import { getEvents, getAllTimeStats } from '../lib/activity.js';
 import { appBaseUrl } from '../lib/util.js';
+import { listDesigns, getDesign, saveDesign, deleteDesign, designUsage, slugifyDesignId } from '../lib/designs.js';
 
 function textResult(obj) {
   return { content: [{ type: 'text', text: JSON.stringify(obj, null, 2) }] };
@@ -144,6 +145,122 @@ function buildServer() {
   }, async ({ limit = 300 }) => {
     const [events, allTime] = await Promise.all([getEvents(limit), getAllTimeStats()]);
     return textResult({ events, allTime });
+  });
+
+  // ── Marketing designs ──────────────────────────────────────────────────
+  // These are the drag-and-drop "marketing email" steps (format:'design'). A design
+  // can come from the visual builder OR from raw HTML (e.g. written in Claude and
+  // handed straight to create_marketing_design) — the send path only ever needs
+  // rendered HTML, so an HTML-authored design works identically to a builder one; it
+  // just can't be reopened in the drag-and-drop builder afterwards. See lib/designs.js.
+
+  server.registerTool('list_marketing_designs', {
+    description: 'List every saved marketing email design: id, name, when it was last updated, and whether it came from the visual builder or raw HTML. Use this before get/update/delete/attach to find the right id.'
+  }, async () => {
+    return textResult(await listDesigns());
+  });
+
+  server.registerTool('get_marketing_design', {
+    description: 'Read one marketing design in full \u2014 its HTML, plain-text fallback, and (if built visually) the builder document. Use list_marketing_designs first if you don\u2019t know the id.',
+    inputSchema: { id: z.string() }
+  }, async ({ id }) => {
+    const record = await getDesign(id);
+    if (!record) return errorResult(`No design with id "${id}". Call list_marketing_designs to see valid ids.`);
+    return textResult(record);
+  });
+
+  server.registerTool('create_marketing_design', {
+    description: 'Create a new marketing email design from raw HTML \u2014 e.g. HTML written in Claude, pasted straight in. No visual builder involved. Produces a design usable in a sequence step exactly like one made in the drag-and-drop builder (attach it with attach_marketing_design). Plain-text fallback is auto-derived from the HTML if you don\u2019t supply one. Click tracking, the open pixel, and the unsubscribe footer are added automatically at send time \u2014 don\u2019t include your own.',
+    inputSchema: {
+      name: z.string().describe('Human-readable name shown in the dashboard'),
+      html: z.string().describe('Full HTML for the email. Personalization tokens like {{dog_name}} work the same as in any other step.'),
+      text: z.string().optional().describe('Plain-text fallback. Auto-generated from the HTML if omitted.'),
+      id: z.string().regex(/^[a-z0-9_-]{3,60}$/).optional().describe('Lowercase id, 3\u201360 chars (letters, numbers, _ or -). Auto-generated from name if omitted.')
+    }
+  }, async ({ name, html, text, id }) => {
+    const resolvedId = id || slugifyDesignId(name);
+    const existing = await getDesign(resolvedId);
+    if (existing) return errorResult(`A design with id "${resolvedId}" already exists \u2014 use update_marketing_design to change it, or pass a different id.`);
+    try {
+      const record = await saveDesign({ id: resolvedId, name, html, text });
+      return textResult({ ok: true, id: record.id, name: record.name, source: record.source, updatedAt: record.updatedAt });
+    } catch (e) {
+      return errorResult(e.message);
+    }
+  });
+
+  server.registerTool('update_marketing_design', {
+    description: 'Rewrite an existing marketing design\u2019s HTML, plain text, and/or name. Any field you omit keeps its current value \u2014 pass only what\u2019s changing. If you pass new HTML without new text, the plain-text fallback is regenerated from the new HTML (the old one would be stale). Any sequence step already attached to this design picks up the change immediately, no re-attach needed.',
+    inputSchema: {
+      id: z.string(),
+      name: z.string().optional(),
+      html: z.string().optional(),
+      text: z.string().optional()
+    }
+  }, async ({ id, name, html, text }) => {
+    const existing = await getDesign(id);
+    if (!existing) return errorResult(`No design with id "${id}". Call list_marketing_designs to see valid ids.`);
+    try {
+      const record = await saveDesign({
+        id,
+        name: name ?? existing.name,
+        design: html != null ? null : existing.design,   // new HTML replaces a builder document too — nothing left to reopen visually
+        html: html ?? existing.html,
+        text: text ?? (html != null ? null : existing.text)   // null → saveDesign derives fresh text from the (possibly new) html
+      });
+      return textResult({ ok: true, id: record.id, name: record.name, source: record.source, updatedAt: record.updatedAt });
+    } catch (e) {
+      return errorResult(e.message);
+    }
+  });
+
+  server.registerTool('delete_marketing_design', {
+    description: 'Delete a marketing design. Refuses if any sequence step still uses it (lists which) unless force is true \u2014 those steps would fail to send until pointed at another design.',
+    inputSchema: {
+      id: z.string(),
+      force: z.boolean().optional().describe('Delete even if sequence steps still reference this design. Default false.')
+    }
+  }, async ({ id, force = false }) => {
+    const existing = await getDesign(id);
+    if (!existing) return errorResult(`No design with id "${id}".`);
+    const all = await getCampaigns();
+    const uses = designUsage(all, id);
+    if (uses.length && !force) {
+      return errorResult(`Still used by: ${uses.map(u => `${u.label || u.campaign} step ${u.step}${u.variant ? ` (variant ${u.variant})` : ''}`).join(', ')}. Pass force:true to delete anyway \u2014 those steps will fail to send until pointed at another design.`);
+    }
+    await deleteDesign(id);
+    return textResult({ ok: true, deleted: id, hadUses: uses });
+  });
+
+  server.registerTool('attach_marketing_design', {
+    description: 'Put a design into a sequence step, turning that step into a marketing email. Converts the step to channel:"email", format:"design". A design step needs a subject line \u2014 pass one, or the design\u2019s own name is used if the step doesn\u2019t already have a subject. Use get_sequence first for the step index (0-based) and list_marketing_designs for the design id.',
+    inputSchema: {
+      key: z.string().describe('Sequence key \u2014 see list_sequences'),
+      stepIndex: z.number().int().min(0).describe('0-based index into the steps array'),
+      designId: z.string(),
+      subject: z.string().optional().describe('Subject line for this step. Falls back to the step\u2019s existing subject, then the design\u2019s name, if omitted.')
+    }
+  }, async ({ key, stepIndex, designId, subject }) => {
+    const all = await getCampaigns();
+    const c = all[key];
+    if (!c) return errorResult(`No sequence with key "${key}". Call list_sequences to see valid keys.`);
+    if (c.type === 'checklist') return errorResult('Checklist campaigns don\u2019t have numbered steps to attach a design to.');
+    const step = c.steps?.[stepIndex];
+    if (!step) return errorResult(`Sequence "${key}" has no step at index ${stepIndex} (it has ${c.steps?.length || 0} steps).`);
+    const design = await getDesign(designId);
+    if (!design) return errorResult(`No design with id "${designId}". Call list_marketing_designs to see valid ids.`);
+
+    step.channel = 'email';
+    step.format = 'design';
+    step.designId = designId;
+    step.subject = subject || step.subject || design.name;
+    delete step.body;       // not used by a design step; leaving a stale plain-text body around invites confusion
+    delete step.variants;   // attach_marketing_design sets ONE design on this step; use save_sequence directly for A/B design variants
+
+    const problem = validCampaign(c);
+    if (problem) return errorResult(problem);
+    await saveCampaigns(all);
+    return textResult({ ok: true, key, stepIndex, step });
   });
 
   return server;
