@@ -7,7 +7,7 @@ function authorized(req) {
   return auth === `Bearer ${process.env.ADMIN_PASSWORD}` && process.env.ADMIN_PASSWORD;
 }
 
-function validCampaign(c) {
+export function validCampaign(c) {
   if (!c || typeof c.label !== 'string' || !c.label.trim()) return 'Campaign needs a name';
 
   if (c.type === 'checklist') {
@@ -42,15 +42,23 @@ function validCampaign(c) {
     const n = i + 1;
     if (s.format === 'design') {
       if (channel !== 'email') return `Step ${n}: marketing emails can't be SMS steps`;
-      if (!s.designId) return `Step ${n} is a marketing email — open the builder and pick a design`;
-      if (!s.subject?.trim()) return `Marketing step ${n} needs a subject line`;
+      if (Array.isArray(s.variants) && s.variants.length) {
+        if (s.variants.length < 2) return `Step ${n}: A/B testing needs at least two variants`;
+        for (const [vi, v] of s.variants.entries()) {
+          const label = v.id || String.fromCharCode(65 + vi);
+          if (!v.designId) return `Step ${n}, variant ${label} needs a design \u2014 open the builder and pick one`;
+          if (!v.subject?.trim()) return `Step ${n}, variant ${label} needs a subject`;
+        }
+      } else {
+        if (!s.designId) return `Step ${n} is a marketing email — open the builder and pick a design`;
+        if (!s.subject?.trim()) return `Marketing step ${n} needs a subject line`;
+      }
     } else if (Array.isArray(s.variants) && s.variants.length) {
-      if (channel !== 'email') return `Step ${n}: A/B testing is email-only`;
       if (s.variants.length < 2) return `Step ${n}: A/B testing needs at least two variants`;
       for (const [vi, v] of s.variants.entries()) {
         const label = v.id || String.fromCharCode(65 + vi);
-        if (!v.subject?.trim()) return `Step ${n}, variant ${label} needs a subject`;
-        if (!v.body?.trim()) return `Step ${n}, variant ${label} needs a body`;
+        if (!v.body?.trim()) return `Step ${n}, variant ${label} needs ${channel === 'sms' ? 'a message' : 'a body'}`;
+        if (channel === 'email' && !v.subject?.trim()) return `Step ${n}, variant ${label} needs a subject`;
       }
     } else {
       if (!s.body?.trim()) return `Step ${n} needs ${channel === 'sms' ? 'a message' : 'a body'}`;
