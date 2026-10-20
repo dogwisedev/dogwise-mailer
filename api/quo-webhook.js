@@ -42,7 +42,8 @@ function signatureOk(header, body, key) {
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
-  if (process.env.CRON_SECRET && req.query?.secret !== process.env.CRON_SECRET) {
+  const expected = process.env.QUO_WEBHOOK_SECRET || process.env.CRON_SECRET;
+  if (expected && req.query?.secret !== expected) {
     return res.status(401).json({ error: 'unauthorized' });
   }
 
