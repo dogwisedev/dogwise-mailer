@@ -7,6 +7,10 @@
     {
       "path": "/api/sweep",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/straight",
+      "schedule": "* * * * *"
     }
   ],
   "functions": {
@@ -15,8 +19,17 @@
     }
   },
   "rewrites": [
-    { "source": "/.well-known/oauth-authorization-server", "destination": "/api/well-known-oauth-as" },
-    { "source": "/.well-known/oauth-protected-resource", "destination": "/api/well-known-oauth-prm" },
-    { "source": "/.well-known/oauth-protected-resource/mcp", "destination": "/api/well-known-oauth-prm" }
+    {
+      "source": "/.well-known/oauth-authorization-server",
+      "destination": "/api/well-known-oauth-as"
+    },
+    {
+      "source": "/.well-known/oauth-protected-resource",
+      "destination": "/api/well-known-oauth-prm"
+    },
+    {
+      "source": "/.well-known/oauth-protected-resource/mcp",
+      "destination": "/api/well-known-oauth-prm"
+    }
   ]
 }
