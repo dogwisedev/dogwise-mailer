@@ -2,7 +2,9 @@
 // POST { "campaign": "new_lead_welcome", "contactIds": ["123","456"], "startInDays": 0 }
 // Called from the Chrome extension, a HubSpot workflow webhook, or curl.
 import { getCampaigns } from '../lib/store.js';
-import { updateContact } from '../lib/hubspot.js';
+import { updateContact, buildOwnerMap, getContactLive } from '../lib/hubspot.js';
+import { processContact } from '../lib/process.js';
+import { tierOf } from '../lib/allocate.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
@@ -39,6 +41,26 @@ export default async function handler(req, res) {
       results.enrolled++;
     } catch (err) {
       results.errors.push({ id, error: err.message });
+    }
+  }
+
+  // Straight campaigns send right now, in this request, rather than waiting for the
+  // cron. Bounded so a big list can't run past the function limit; anything left over
+  // is already due and the cron serves Straight before everything else.
+  if (tierOf(campaigns[campaign]) === 'straight' && firstSend === '0' && results.enrolled) {
+    const startedAt = Date.now();
+    const ownerMap = await buildOwnerMap();
+    results.sentNow = [];
+    for (const id of contactIds) {
+      if (Date.now() - startedAt > 60000) { results.note = 'rest left for the next cron run'; break; }
+      try {
+        const readAt = Date.now();
+        const contact = await getContactLive(id);
+        const r = await processContact(contact, campaigns, ownerMap, null, { readAt });
+        results.sentNow.push({ id, status: r.status, detail: r.detail });
+      } catch (err) {
+        results.sentNow.push({ id, status: 'error', detail: err.message });
+      }
     }
   }
 

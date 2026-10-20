@@ -1,4 +1,7 @@
 // api/hook.js — HubSpot "Send a webhook" workflow action hits this for INSTANT sends.
+// This is how Straight campaigns (quotes) go out with no cron wait: the workflow sets
+// the three dw_* properties, then calls this. The cron still serves Straight first as
+// a safety net if the webhook ever fails.
 // Configure in HubSpot (place AFTER the Edit-record actions that set dw_* properties):
 //   Target URL: https://<your-app>.vercel.app/api/hook?secret=<CRON_SECRET>
 //   Method: POST  |  Retry on failure: ✓
@@ -6,6 +9,7 @@
 import { getCampaigns } from '../lib/store.js';
 import { buildOwnerMap, CONTACT_PROPS } from '../lib/hubspot.js';
 import { processContact } from '../lib/process.js';
+import { tierOf } from '../lib/allocate.js';
 
 const BASE = 'https://api.hubapi.com';
 
@@ -58,6 +62,7 @@ export default async function handler(req, res) {
 
     for (const id of contactIds) {
       try {
+        const readAt = Date.now();
         const contact = await hs(`/crm/v3/objects/contacts/${id}?properties=${CONTACT_PROPS}`);
         // Only send if actually due now (dw_next_send <= now) — respects future-dated steps
         const next = parseInt(contact.properties?.dw_next_send || '', 10);
@@ -65,7 +70,13 @@ export default async function handler(req, res) {
           results.push({ id, status: 'skipped', detail: 'not due' });
           continue;
         }
-        results.push({ id, ...(await processContact(contact, campaigns, ownerMap)) });
+        // Passive campaigns never jump the queue, even when a workflow calls this
+        // hook for them. The cron sends them on spare capacity, and that is the point.
+        if (tierOf(campaigns[contact.properties.dw_campaign]) === 'passive') {
+          results.push({ id, status: 'queued', detail: 'passive campaign — left for the cron' });
+          continue;
+        }
+        results.push({ id, ...(await processContact(contact, campaigns, ownerMap, null, { readAt })) });
       } catch (err) {
         results.push({ id, status: 'error', detail: err.message });
       }

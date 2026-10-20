@@ -43,6 +43,10 @@ export default async function handler(req, res) {
     // long before any rate limit did. Batched at 100 per call, 80 contacts cost
     // about 4 calls instead of 240.
     const ids = contacts.map((c) => c.id);
+    // Straight campaigns are also sent instantly by api/hook.js. If one of these
+    // contacts is sent by the hook after this read, processContact sees it and
+    // re-reads rather than sending twice.
+    const readAt = Date.now();
     let freshById = new Map();
     let dealById = new Map();
     try {
@@ -68,7 +72,7 @@ export default async function handler(req, res) {
         // where we have it, or a direct read if that contact was missed.
         const fresh = freshById.get(String(contact.id)) || await getContactLive(contact.id);
         const pre = dealById.has(String(contact.id)) ? { deal: dealById.get(String(contact.id)) } : null;
-        const r = await processContact(fresh, campaigns, ownerMap, pre);
+        const r = await processContact(fresh, campaigns, ownerMap, pre, { readAt });
         const ck = fresh.properties?.dw_campaign || contact.properties?.dw_campaign || '?';
         if (r.status === 'sent') { summary.sent++; sentBy[ck] = (sentBy[ck] || 0) + 1; }
         else if (r.status === 'completed') { summary.completed++; if (r.detail) { summary.sent++; sentBy[ck] = (sentBy[ck] || 0) + 1; } }

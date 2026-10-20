@@ -431,6 +431,7 @@ table.tbl tr:hover td{background:#fafbfd}
 .bl-tag{font-size:10.5px;padding:1px 6px;border-radius:5px;margin-left:6px;vertical-align:1px}
 .bl-tag.passive{background:#eef1f4;color:#5b6b7a}
 .bl-tag.live{background:#e6f4ec;color:#1d6b43}
+.bl-tag.straight{background:#fdf0e1;color:#9a5a12}
 .bl-tag.paused{background:#fdeeee;color:#8c2f2f}
 .acttbl .grow{cursor:pointer;background:rgba(15,32,56,.035)}
 .acttbl .grow:hover{background:rgba(15,32,56,.06)}
@@ -708,6 +709,7 @@ table.tbl tr:hover td{background:#fafbfd}
           <div class="wgroup">
             <span class="wl">Priority</span>
             <select class="selectbox" id="campPriority" style="min-width:210px">
+              <option value="straight">Straight — sends instantly (quotes)</option>
               <option value="live">Live leads — always first</option>
               <option value="normal">Normal — shares the queue</option>
               <option value="passive">Passive — spare capacity only</option>
@@ -1136,9 +1138,10 @@ function renderMeta(){
 function syncPriorityHint(){
   const v=$('campPriority').value;
   const t={
-    live:'New and returning leads. Served before everything else, every run \u2014 a fresh lead never waits behind a backlog. Use for welcome and onboarding.',
+    straight:'Sends the moment the contact is enrolled \u2014 no queue, no cron wait (needs the HubSpot workflow to call the webhook). If that ever fails, the cron sends it first, ahead of everything else. Use for quotes to live customers.',
+    live:'New and returning leads. Served before normal and passive, every run \u2014 a fresh lead never waits behind a backlog. Use for welcome and onboarding.',
     normal:'Shares whatever is left after live leads, evenly with other normal sequences.',
-    passive:'Only runs on capacity nobody else is using, so a big list drains steadily without ever delaying a live lead. Use for reactivation and closed-lost. These will not raise alerts when they sit idle \u2014 that is expected.'
+    passive:'Only runs on capacity nobody else is using, so a big list drains steadily without ever delaying a live lead. Capped per sender per day so it can never use up a mailbox. Use for reactivation, OR and closed-lost. These will not raise alerts when they sit idle \u2014 that is expected.'
   };
   $('priorityHint').textContent=t[v]||t.normal;
 }
@@ -1630,7 +1633,8 @@ async function loadBacklog(){
 
     const tag=(r)=> r.paused ? '<span class="bl-tag paused">paused</span>'
       : r.priority==='passive' ? '<span class="bl-tag passive">passive</span>'
-      : r.priority==='live' ? '<span class="bl-tag live">live</span>' : '';
+      : r.priority==='live' ? '<span class="bl-tag live">live</span>'
+      : r.priority==='straight' ? '<span class="bl-tag straight">straight</span>' : '';
 
     const rows=d.rows.map(r=>`<tr><td>${esc(r.label)} ${tag(r)}</td><td style="text-align:right;font-variant-numeric:tabular-nums">${r.waiting===null?'<span style="color:var(--mute)">not counted yet</span>':r.waiting}</td></tr>`).join('');
 
