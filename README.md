@@ -52,6 +52,8 @@ Open `https://<your-app>.vercel.app` → enter the team password (`ADMIN_PASSWOR
 | `MAX_PER_RUN` | Optional, default 40 |
 | `MAX_PER_SENDER_PER_RUN` | Optional, default 15 |
 | `SEND_TZ` / `SEND_START_HOUR` / `SEND_END_HOUR` | Optional, default America/New_York 8–18 |
+| `ALERT_WEBHOOK_URL` | Optional: where "Mailer alert" messages go (Slack today) |
+| `BUZZ_ALERT_URL` / `BUZZ_ALERT_SECRET` | Optional: the same alerts in Buzz, side by side. From a Buzz workflow with a Webhook trigger and one Send message step whose text is `{{trigger.message}}`. Each target works on its own: one being down never stops the other |
 
 4. **Add the database**: Vercel project → Storage tab → Create → **Upstash for Redis** (free tier). This injects `KV_REST_API_URL` / `KV_REST_API_TOKEN` automatically. Without it the dashboard is read-only (campaigns.json seed).
 5. **Deploy.** The cron in `vercel.json` registers automatically.
