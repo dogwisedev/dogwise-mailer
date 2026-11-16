@@ -716,6 +716,7 @@ table.tbl tr:hover td{background:#fafbfd}
             </select>
           </div>
           <label class="switch"><input type="checkbox" id="stopCalled"><span class="track"></span><span class="sl">Stop if a rep logs a call</span></label>
+          <label class="switch" title="Normally a reply (email or text) stops the sequence for that contact. Turn this on for ongoing notes, such as a regular email to our trainers, so people who reply keep getting the rest."><input type="checkbox" id="keepReply"><span class="track"></span><span class="sl">Keep sending if they reply</span></label>
           <span class="folder-chip" id="folderChip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-7.9a1 1 0 0 1-.8-.4l-1.1-1.4a1 1 0 0 0-.8-.4H4a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1Z"/></svg><span id="folderChipName">Unfiled</span></span>
         </div>
         <div class="hint" id="priorityHint" style="margin:10px 2px 0"></div>
@@ -1126,6 +1127,7 @@ function renderMeta(){
   setTimeout(drawTrigs,0);
   $('winStart').value=String(w.startMins); $('winEnd').value=String(w.endMins);
   $('stopCalled').checked=!!c.stopIfCalled;
+  $('keepReply').checked=c.keepOnReply===true;
   const opt=c.sendOptimization||{};
   $('optSend').checked=!!opt.enabled;
   $('optAfter').value=opt.afterOpens||20;
@@ -1154,6 +1156,7 @@ $('winEnd').onchange=()=>{ const c=campaigns[activeKey]; const w=winMins(c); w.e
   if(w.endMins<=w.startMins){ w.startMins=Math.max(0,w.endMins-15); $('winStart').value=String(w.startMins); }
   c.window={startMins:w.startMins,endMins:w.endMins}; scheduleDraft(); };
 $('stopCalled').onchange=()=>{ campaigns[activeKey].stopIfCalled=$('stopCalled').checked; scheduleDraft(); };
+$('keepReply').onchange=()=>{ const c=campaigns[activeKey]; if($('keepReply').checked) c.keepOnReply=true; else delete c.keepOnReply; scheduleDraft(); };
 function syncOpt(){ const c=campaigns[activeKey];
   c.sendOptimization={ enabled:$('optSend').checked, afterOpens:Math.max(1,parseInt($('optAfter').value)||20), reoptimizeEvery:Math.max(1,parseInt($('optEvery').value)||20) };
   $('optFields').classList.toggle('on',c.sendOptimization.enabled);

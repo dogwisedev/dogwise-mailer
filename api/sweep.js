@@ -24,6 +24,10 @@ export default async function handler(req, res) {
 
     async function checkReply(rec, { unenroll }) {
       if (campaigns[rec.properties?.dw_campaign]?.type === 'checklist') return; // onboarding stops only when the checklist is done
+      // keepOnReply sequences never unenrol on a reply. lib/process.js logs the reply when
+      // the contact's next step sends, so there is nothing for the sweep to do while they
+      // are still enrolled.
+      if (unenroll && campaigns[rec.properties?.dw_campaign]?.keepOnReply === true) return;
       if (!(await shouldReplyCheck(rec.id, 4))) return; // each contact checked at most every 4h
       // Scoped to the contact's current campaign, matching lib/process.js. Unscoped, a
       // reply to an older sequence would unenrol them from the one they are in now.
