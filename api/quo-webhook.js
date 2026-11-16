@@ -92,7 +92,7 @@ export default async function handler(req, res) {
         if (!keepOnReply) await updateContact(c.id, { dw_campaign: '', dw_next_send: '' });
         await markReplied(c.id, campaign);
         if (once) {
-          await logEvent({ type: 'replied', contact: who, campaign, step, channel: 'sms', detail: keepOnReply ? 'text reply logged — sequence continues (keep on reply)' : 'sequence stopped — contact texted back' });
+          await logEvent({ type: 'replied', contact: who, campaign, step, channel: 'sms', detail: keepOnReply ? 'text reply logged, sequence continues (keep on reply)' : 'sequence stopped — contact texted back' });
           await bumpStat(campaign, 'replied');
           await bumpStat(campaign, 'replied_sms');
           await bumpMetric({ campaign, step, metric: 'replied' });
